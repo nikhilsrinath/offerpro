@@ -28,6 +28,9 @@ import { PhotoPortrait, Kpi } from './portal/me/portalKit';
 import { tenureLabel, daysUntilBirthday, useWindowWidth, hoursLabel } from './portal/me/portalUtils';
 import { initialQuery } from '../services/urlQuery';
 import PaySalaryPanel from './people/PaySalaryPanel';
+import EmployeePayments from './people/EmployeePayments';
+import NoticeForm from './people/NoticeForm';
+import { confirmDialog } from '../services/confirm';
 import { useSection } from './financial/financeHooks';
 import { monthlySalary, hasSalary, salaryPaidIn, monthKeyOf, monthName } from '../shared/payroll';
 import { formatCurrency } from '../shared/currency.js';
@@ -207,7 +210,12 @@ function PortalAccess({ emp, orgId, onChanged }) {
 
 /* ── person sheet ─────────────────────────────────────────────────────────── */
 
-function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUserEmail, departments }) {
+/**
+ * One person's sheet. With `former` it is an ex-employee's (ExEmployees.jsx):
+ * the same profile and history, read only, with when and why they left, and
+ * Delete and Revert (`onRevert`) in place of the actions on someone current.
+ */
+export function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, onEnd, onNotice, onRevert, former = false, canSeePay, initialTab = 'overview', currentUserEmail, departments = [] }) {
     const t = useT();
     const name = getDisplayName(emp);
     const [view, setView] = useState('detail');   // detail | role_change | termination
@@ -215,7 +223,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
     const [busy, setBusy] = useState(false);
     const [copied, setCopied] = useState(false);
     const [accessKey, setAccessKey] = useState(0);   // remounts MemberAccess after a login changes
-    const [tab, setTab] = useState('overview');      // overview | attendance | leave | access
+    const [tab, setTab] = useState(initialTab);      // overview | attendance | leave | access | payment
     const work = useEmployeeWork(emp, orgId);
     const projects = useEmployeeProjects(emp.id);
 
@@ -249,18 +257,15 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
             created_at: new Date().toISOString(),
         };
 
-        const doc = type === 'role_change'
-            ? {
-                ...common, type: 'role_change', title: `Role Change – ${name}`,
-                new_role: rc.newRole, new_department: rc.newDepartment || emp.department || '',
-                effective_date: rc.effectiveDate,
-                new_salary: rc.newSalary ? Number(rc.newSalary) : null,
-                salary_frequency: rc.salaryFrequency, message: rc.message,
-            }
-            : {
-                ...common, type: 'termination', title: `Termination Notice – ${name}`,
-                last_day: term.lastDay, message: term.message,
-            };
+        // Only a role change is issued from here; a notice of termination is
+        // written from the template in the Payment tab (NoticeForm).
+        const doc = {
+            ...common, type, title: `Role Change – ${name}`,
+            new_role: rc.newRole, new_department: rc.newDepartment || emp.department || '',
+            effective_date: rc.effectiveDate,
+            new_salary: rc.newSalary ? Number(rc.newSalary) : null,
+            salary_frequency: rc.salaryFrequency, message: rc.message,
+        };
 
         const saved = await documentStore.save(doc);
         const { url } = await createPortalLink({ orgId, documentId: saved.id, recipientEmail: emp.email });
@@ -332,34 +337,48 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
         );
     }
 
+    // Ends the employment now: they move to Ex-Employees, with the last
+    // working day as the exit date. A notice is written from the Payment tab.
+    const endNow = async () => {
+        if (!(await confirmDialog({
+            title: 'End employment',
+            message: `End ${name || 'this person'}'s employment, with ${fmtDate(term.lastDay)} as the last working day? They move to Ex-Employees now.`,
+            confirmLabel: 'End',
+        }))) return;
+        setBusy(true);
+        try {
+            await onEnd({ lastDay: term.lastDay, reason: term.message });
+        } finally {
+            setBusy(false);
+        }
+    };
+
     if (view === 'termination') {
         return (
             <Modal open onClose={onClose} title={'End employment: ' + name}
-                note="They move to Ex-Employees once they acknowledge"
-                footer={!link && (
+                note="They move to Ex-Employees as soon as you press End"
+                footer={(
                     <>
                         <Btn onClick={back}>Back</Btn>
-                        <Btn primary onClick={() => issue('termination')} disabled={busy || !term.lastDay}>
-                            {busy ? 'Preparing…' : 'Create notice'}
+                        <Btn primary onClick={endNow} disabled={busy || !term.lastDay}>
+                            {busy ? 'Ending…' : 'End'}
                         </Btn>
                     </>
                 )}>
-                {link ? sentBox('The notice') : (
-                    <>
-                        <Field required label="Last working day">
-                            <Input type="date" value={term.lastDay} onChange={(e) => setTerm({ ...term, lastDay: e.target.value })} />
-                        </Field>
-                        <div style={{ height: 13 }} />
-                        <Field label="Message" hint="Read by them, and kept on the record">
-                            <Textarea value={term.message} onChange={(e) => setTerm({ ...term, message: e.target.value })} />
-                        </Field>
-                    </>
-                )}
+                <Field required label="Last working day">
+                    <Input type="date" value={term.lastDay} onChange={(e) => setTerm({ ...term, lastDay: e.target.value })} />
+                </Field>
+                <div style={{ height: 13 }} />
+                <Field label="Reason" hint="Kept on their record in Ex-Employees">
+                    <Textarea value={term.message} onChange={(e) => setTerm({ ...term, message: e.target.value })} />
+                </Field>
             </Modal>
         );
     }
 
-    const tenure = tenureLabel(emp.startDate);
+    // A former employee's tenure runs to the day they left.
+    const leftOn = former ? (emp.exited_at || emp.terminated_at || null) : null;
+    const tenure = tenureLabel(emp.startDate, leftOn ? new Date(leftOn) : undefined);
     const bdayIn = daysUntilBirthday(emp.date_of_birth);
     const stacked = winW < 900;
     const narrow = winW < 1180;
@@ -377,7 +396,9 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
         ['Salary', salaryLabel(emp)],
         ['Reports To', emp.supervisorName],
         ['Joined', emp.startDate && fmtDate(emp.startDate)],
-        ['Ends', emp.endDate ? fmtDate(emp.endDate) : null],
+        ['Ends', !former && emp.endDate ? fmtDate(emp.endDate) : null],
+        ['Left', leftOn && fmtDate(leftOn)],
+        ['Reason', former && (emp.termination_reason || emp.exit_reason)],
         ['Email', emp.email && <a href={`mailto:${emp.email}`} style={link2}>{emp.email}</a>],
         ['Phone', emp.phone && <a href={`tel:${emp.phone}`} style={link2}>{emp.phone}</a>],
         ['Birthday', emp.date_of_birth && (
@@ -402,7 +423,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
     /* ── left: who they are. Fixed on desktop: it never scrolls. ── */
     const profile = (
         <aside style={{
-            display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0,
+            display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0,
             padding: 20, boxSizing: 'border-box',
             ...(stacked ? { borderBottom: '1px solid ' + t.line } : { borderRight: '1px solid ' + t.line, overflow: 'hidden', background: t.panelAlt }),
         }}>
@@ -413,11 +434,12 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
                 <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 17, fontWeight: 500, letterSpacing: '-0.02em', color: t.text, wordBreak: 'break-word' }}>{name}</div>
                     <div style={{ fontSize: 12.5, color: t.dim, marginTop: 3 }}>{emp.role || 'No role set'}</div>
-                    {tenure && <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{tenure} here</div>}
+                    {tenure && <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{tenure} {former ? 'with the company' : 'here'}</div>}
                 </div>
             </div>
 
             <Row gap={6} wrap>
+                {former && <Status tone="down">Former Employee</Status>}
                 <Status tone={emp.user_id ? 'up' : 'mute'}>{emp.user_id ? 'Portal Active' : 'No Portal Login'}</Status>
                 {projects.current.length > 0 && <Status tone="accent">{projects.current.length} Project{projects.current.length === 1 ? '' : 's'}</Status>}
             </Row>
@@ -460,11 +482,12 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
             <PortalAccess emp={emp} orgId={orgId} onChanged={() => setAccessKey((k) => k + 1)} />
             <MemberAccess key={accessKey} email={emp.email} name={name} />
         </div>
-    ) : work.loading ? <Loading>Loading work history…</Loading>
+    ) : tab === 'payment' ? <EmployeePayments emp={emp} narrow={narrow} onNotice={onNotice} />
+        : work.loading ? <Loading>Loading work history…</Loading>
         : tab === 'attendance' ? <AttendanceSection work={work} narrow={narrow} />
             : tab === 'leave' ? <LeaveSection work={work} narrow={narrow} />
                 : (
-                    <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+                    <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
                         <TodayStrip work={work} />
                         {kpis}
                         <EmployeeProjects data={projects} />
@@ -483,15 +506,26 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
                 { id: 'overview', label: 'Overview' },
                 { id: 'attendance', label: 'Attendance' },
                 { id: 'leave', label: 'Leave' },
-                { id: 'access', label: 'Access' },
+                // A former employee's sign-in is dealt with in Settings → Members.
+                ...(former ? [] : [{ id: 'access', label: 'Access' }]),
+                // Pay is owner/admin-only, so the payments made to them are too.
+                ...(canSeePay ? [{ id: 'payment', label: 'Payment' }] : []),
             ]} />
         </div>
     );
 
     return (
-        <Modal open onClose={onClose} width={1200}
+        <Modal open onClose={onClose} width={1440}
             title={name || 'Employee'} note={[emp.role, emp.department].filter(Boolean).join(' · ') || undefined}
-            footer={
+            footer={former ? (
+                <>
+                    <ConfirmBtn size="md" label="Delete record" confirmLabel="Delete" title="Delete ex-employee"
+                        message={`Delete ${name || 'this person'} from the archive? This removes the record permanently and cannot be undone.`} onConfirm={() => onDelete(emp.id)} />
+                    <div style={{ flex: 1 }} />
+                    <Btn onClick={onClose}>Close</Btn>
+                    {onRevert && <Btn primary onClick={onRevert}>Revert</Btn>}
+                </>
+            ) : (
                 <>
                     {!isSelf && <ConfirmBtn size="md" label="Delete record" confirmLabel="Delete" title="Delete employee"
                         message={`Are you sure you want to delete ${name || 'this employee'} from the registry? This cannot be undone.`} onConfirm={() => onDelete(emp.id)} />}
@@ -501,7 +535,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
                     {onPay && <Btn variant="teal" onClick={onPay}>Pay salary</Btn>}
                     <Btn primary onClick={onEdit}>Edit details</Btn>
                 </>
-            }>
+            )}>
             {stacked ? (
                 <div style={{ margin: 0 }}>
                     {profile}
@@ -513,7 +547,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUser
                 // the right column scrolls.
                 <div style={{
                     margin: 0, height: '100%', display: 'grid',
-                    gridTemplateColumns: '360px minmax(0, 1fr)', overflow: 'hidden',
+                    gridTemplateColumns: '320px minmax(0, 1fr)', overflow: 'hidden',
                 }}>
                     {profile}
                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
@@ -550,6 +584,11 @@ export default function Employees() {
     const [addingSelf, setAddingSelf] = useState(false);
     const [editing, setEditing] = useState(null);
     const [paying, setPaying] = useState(null);
+    // The notice being written ({ emp, notice }), and the sheet tab to come back to.
+    const [noticeFor, setNoticeFor] = useState(null);
+    const [sheetTab, setSheetTab] = useState('overview');
+    // Where the table puts its Columns button: in the toolbar, beside Departments.
+    const [colSlot, setColSlot] = useState(null);
 
     // Salary is admin-only: everyone else gets no pay back, and sees no column.
     const expenses = useSection('expenses');
@@ -670,6 +709,20 @@ export default function Employees() {
         }
     };
 
+    // End: straight to Ex-Employees, the last working day as the exit date.
+    const endEmployment = async (emp, { lastDay, reason }) => {
+        try {
+            await orgStore.removeItem('employees', emp.id, {
+                exitedAt: lastDay, reason: (reason || '').trim() || 'Employment ended',
+            });
+            orgStore.refreshSection('ex_employees');
+            setSelected(null);
+            loadEmployees();
+        } catch (err) {
+            alert('Could not end the employment: ' + err.message);
+        }
+    };
+
     const deptRows = useMemo(() => departmentRows(employees, departments), [employees, departments]);
 
     const list = useMemo(() => {
@@ -719,12 +772,37 @@ export default function Employees() {
         );
     }
 
+    if (noticeFor) {
+        return (
+            <Page>
+                <NoticeForm emp={noticeFor.emp} notice={noticeFor.notice}
+                    onBack={() => { setSheetTab('payment'); setSelected(noticeFor.emp); setNoticeFor(null); }} />
+            </Page>
+        );
+    }
+
     if (loading) return <Page><Loading>Loading the registry…</Loading></Page>;
 
     return (
         <Page>
+            {/* The headline numbers first, then the filters right over the list they narrow. */}
+            {employees.length > 0 && (
+                <StatBand items={[
+                    { label: 'On the team', value: counts.all },
+                    { label: 'Full-time', value: counts.fulltime, note: counts.all ? Number((counts.fulltime / counts.all) * 100).toFixed(2) + '% of the team' : undefined },
+                    { label: 'Interns', value: counts.intern },
+                    { label: 'Departments', value: deptRows.length },
+                    ...(payroll.canSee ? [{
+                        label: 'Monthly payroll', value: formatCurrency(payroll.total),
+                        note: payroll.due ? `${payroll.due} to pay for ${monthName(thisMonth)} · ${formatCurrency(payroll.dueAmount)}` : `Everyone paid for ${monthName(thisMonth)}`,
+                    }] : []),
+                ]} />
+            )}
+
             <Toolbar right={
                 <Row gap={8}>
+                    {/* The table's Columns button lands here, beside Departments and Add employee. */}
+                    {view === 'table' && list.length > 0 && <span ref={setColSlot} style={{ display: 'inline-flex', alignItems: 'center' }} />}
                     <Btn onClick={() => setShowDepts((v) => !v)}>{showDepts ? 'Hide departments' : 'Departments'}</Btn>
                     <Btn primary onClick={() => navigate('/company/employees/new')}>Add employee</Btn>
                 </Row>
@@ -748,24 +826,11 @@ export default function Employees() {
                 ]} />
             </Toolbar>
 
-            {employees.length > 0 && (
-                <StatBand items={[
-                    { label: 'On the team', value: counts.all },
-                    { label: 'Full-time', value: counts.fulltime, note: counts.all ? Number((counts.fulltime / counts.all) * 100).toFixed(2) + '% of the team' : undefined },
-                    { label: 'Interns', value: counts.intern },
-                    { label: 'Departments', value: deptRows.length },
-                    ...(payroll.canSee ? [{
-                        label: 'Monthly payroll', value: formatCurrency(payroll.total),
-                        note: payroll.due ? `${payroll.due} to pay for ${monthName(thisMonth)} · ${formatCurrency(payroll.dueAmount)}` : `Everyone paid for ${monthName(thisMonth)}`,
-                    }] : []),
-                ]} />
-            )}
-
             {ownerEmail && !ownerHasName && (
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
                     border: '1px solid ' + t.lineStrong, borderRadius: 10,
-                    padding: '11px 13px', marginBottom: 14,
+                    padding: '11px 13px', marginBottom: 12,
                 }}>
                     <span style={{ fontSize: 12.5, color: t.dim, flex: 1, minWidth: 200 }}>
                         You are not in the registry yet. Adding yourself puts you on the org chart and in the team list.
@@ -774,7 +839,7 @@ export default function Employees() {
                 </div>
             )}
 
-            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: showDepts ? 'minmax(0,1fr) 268px' : '1fr', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gap: 12, gridTemplateColumns: showDepts ? 'minmax(0,1fr) 268px' : '1fr', alignItems: 'start' }}>
                 <div style={{ minWidth: 0 }}>
                     {dept && (
                         <Row gap={8} style={{ marginBottom: 10 }}>
@@ -792,7 +857,7 @@ export default function Employees() {
                             </Empty>
                         </Panel>
                     ) : view === 'table' ? (
-                        <Table id="employees" cols={[
+                        <Table id="employees" pickerIn={colSlot} cols={[
                             { key: 'n', label: 'Name', always: true },
                             { key: 'id', label: 'Employee ID' },
                             { key: 'em', label: 'Email', def: false },
@@ -802,7 +867,7 @@ export default function Employees() {
                             { key: 'sv', label: 'Supervisor', def: false },
                             { key: 'lo', label: 'Location', def: false },
                             { key: 't', label: 'Type' },
-                            { key: 's', label: 'Started' },
+                            { key: 's', label: 'Joined' },
                             { key: 'e', label: 'Ends', def: false },
                             { key: 'pd', label: 'Paid', def: false },
                             ...(payroll.canSee ? [
@@ -921,10 +986,14 @@ export default function Employees() {
                 <Detail
                     emp={selected} orgId={activeOrg?.id} org={activeOrg}
                     departments={deptRows} currentUserEmail={user?.email}
-                    onClose={() => setSelected(null)}
+                    onClose={() => { setSelected(null); setSheetTab('overview'); }}
+                    initialTab={sheetTab}
+                    onEnd={(x) => endEmployment(selected, x)}
+                    onNotice={(notice) => { setNoticeFor({ emp: selected, notice }); setSelected(null); }}
                     onDelete={remove}
                     onEdit={() => { setEditing(selected); setSelected(null); }}
                     onPay={canPay(selected) ? () => { setPaying(selected); setSelected(null); } : undefined}
+                    canSeePay={payroll.canSee || ['owner', 'admin'].includes(orgStore.getRole())}
                 />
             )}
 

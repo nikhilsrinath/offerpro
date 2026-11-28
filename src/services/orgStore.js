@@ -211,6 +211,8 @@ const SECTIONS = {
       source_client_stage: r.source_client_stage || null,
       tags: r.tags || [],
       cost_method: r.cost_method || 'allocation',
+      // 0119: whether the project shows Social; undefined on a database without it.
+      ...('social_enabled' in r ? { social_enabled: r.social_enabled !== false } : {}),
       closed_at: r.closed_at, closed_by: r.closed_by, archived_at: r.archived_at,
       created_by: r.created_by, created_at: r.created_at, updated_at: r.updated_at,
     }),
@@ -236,6 +238,8 @@ const SECTIONS = {
       source_client_stage: nn(i.source_client_stage),
       tags: Array.isArray(i.tags) ? i.tags.filter(Boolean) : [],
       cost_method: i.cost_method === 'timesheet' ? 'timesheet' : 'allocation',
+      // 0119: only sent when known, so a database without the column still saves.
+      ...(typeof i.social_enabled === 'boolean' ? { social_enabled: i.social_enabled } : {}),
       archived_at: nn(i.archived_at),
     }),
   },
@@ -477,6 +481,114 @@ const SECTIONS = {
       billing_pct: i.billing_pct === '' || i.billing_pct == null ? null : num(i.billing_pct),
       billing_amount: i.billing_amount === '' || i.billing_amount == null ? null : num(i.billing_amount),
       invoice_id: nn(i.invoice_id),
+    }),
+  },
+
+  // Pay history (0121): one row per change in someone's pay, from the date it
+  // takes effect until the next. Owner/admin only under RLS, as pay is; anyone
+  // else reads none. The database keeps employee_compensation (the pay now)
+  // in step with it.
+  pay_revisions: {
+    table: 'employee_pay_revisions',
+    order: 'effective_from',
+    fromRow: (r) => ({
+      id: r.id, employee_id: r.employee_id, effective_from: r.effective_from,
+      amount: Number(r.amount) || 0, note: r.note || '', created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      employee_id: i.employee_id, effective_from: date(i.effective_from),
+      amount: num(i.amount, 0), note: nn(String(i.note || '').trim()),
+    }),
+  },
+
+  // Social (0119): a project's content calendar, campaigns, launches,
+  // competitors and monthly figures. Shapes and validation: socialModel.js.
+  social_posts: {
+    table: 'social_posts',
+    order: 'scheduled_at',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, title: r.title, caption: r.caption || '',
+      platforms: jsonList(r.platforms), scheduled_at: r.scheduled_at || null, status: r.status,
+      owner_id: r.owner_id || null, campaign_id: r.campaign_id || null, pillar: r.pillar || '',
+      asset_links: jsonList(r.asset_links), post_url: r.post_url || '', notes: r.notes || '',
+      published_at: r.published_at || null, created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, title: String(i.title || '').trim() || 'Untitled post',
+      caption: nn(i.caption), platforms: jsonList(i.platforms), scheduled_at: nn(i.scheduled_at),
+      status: i.status || 'idea', owner_id: nn(i.owner_id), campaign_id: nn(i.campaign_id),
+      pillar: nn(String(i.pillar || '').trim()), asset_links: jsonList(i.asset_links).filter(Boolean),
+      post_url: nn(String(i.post_url || '').trim()), notes: nn(i.notes),
+    }),
+  },
+  social_campaigns: {
+    table: 'social_campaigns',
+    order: 'start_date',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, name: r.name, kind: r.kind, paid: !!r.paid,
+      objective: r.objective || '', status: r.status, start_date: r.start_date, end_date: r.end_date,
+      owner_id: r.owner_id || null, launch_id: r.launch_id || null,
+      budget: r.budget == null ? null : Number(r.budget), spent: r.spent == null ? null : Number(r.spent),
+      currency: r.currency || null,
+      target_leads: r.target_leads, leads: r.leads, target_reach: r.target_reach, reach: r.reach,
+      notes: r.notes || '', created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, name: String(i.name || '').trim() || 'Untitled campaign',
+      kind: i.kind || 'social', paid: !!i.paid, objective: nn(i.objective), status: i.status || 'planned',
+      start_date: date(i.start_date), end_date: date(i.end_date), owner_id: nn(i.owner_id),
+      launch_id: nn(i.launch_id), budget: num(i.budget), spent: num(i.spent), currency: nn(i.currency),
+      target_leads: num(i.target_leads), leads: num(i.leads),
+      target_reach: num(i.target_reach), reach: num(i.reach), notes: nn(i.notes),
+    }),
+  },
+  social_launches: {
+    table: 'social_launches',
+    order: 'launch_date',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, name: r.name, kind: r.kind, catalog_id: r.catalog_id || null,
+      launch_date: r.launch_date, status: r.status, owner_id: r.owner_id || null,
+      audience: r.audience || '', positioning: r.positioning || '', pricing: r.pricing || '',
+      checklist: jsonList(r.checklist), review: r.review || '',
+      created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, name: String(i.name || '').trim() || 'Untitled launch',
+      kind: i.kind === 'service' ? 'service' : 'product', catalog_id: nn(i.catalog_id),
+      launch_date: date(i.launch_date), status: i.status || 'planning', owner_id: nn(i.owner_id),
+      audience: nn(i.audience), positioning: nn(i.positioning), pricing: nn(i.pricing),
+      checklist: jsonList(i.checklist), review: nn(i.review),
+    }),
+  },
+  social_competitors: {
+    table: 'social_competitors',
+    order: 'name',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, name: r.name, website: r.website || '',
+      handles: jsonObject(r.handles) || {}, strengths: r.strengths || '', weaknesses: r.weaknesses || '',
+      notes: r.notes || '', snapshots: jsonList(r.snapshots),
+      created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, name: String(i.name || '').trim() || 'Competitor',
+      website: nn(String(i.website || '').trim()), handles: jsonObject(i.handles) || {},
+      strengths: nn(i.strengths), weaknesses: nn(i.weaknesses), notes: nn(i.notes),
+      snapshots: jsonList(i.snapshots),
+    }),
+  },
+  social_metrics: {
+    table: 'social_metrics',
+    order: 'period',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, platform: r.platform, period: date(r.period),
+      followers: r.followers, reach: r.reach, impressions: r.impressions,
+      engagements: r.engagements, posts: r.posts, clicks: r.clicks, notes: r.notes || '',
+      created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, platform: i.platform, period: date(i.period),
+      followers: num(i.followers), reach: num(i.reach), impressions: num(i.impressions),
+      engagements: num(i.engagements), posts: num(i.posts), clicks: num(i.clicks), notes: nn(i.notes),
     }),
   },
 
@@ -789,6 +901,8 @@ const SECTIONS = {
       ...('tds_amount' in r ? { tds_amount: Number(r.tds_amount) || 0 } : {}),
       // 0109: the month a salary pays for, present only when the database has the column.
       ...('pay_period' in r ? { pay_period: r.pay_period || null } : {}),
+      // 0117: Miscellaneous or Internal Purpose, present only when the database has the column.
+      ...('paid_to' in r ? { paid_to: r.paid_to || null } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // `amount` is deliberately NOT sent: app.expense_guard() derives it from
@@ -832,6 +946,9 @@ const SECTIONS = {
       ...optional(i, { tds_amount: (v) => num(v, 0) }),
       // 0109. Sent only by the Pay button (or an entry read back with one).
       ...(i.pay_period ? { pay_period: date(i.pay_period) } : {}),
+      // 0117. Sent only once the entry has one (picked, or read back from a
+      // database with the column), so an entry without it still saves before 0117.
+      ...optional(i, { paid_to: (v) => (v === 'misc' || v === 'internal' ? v : null) }),
     }),
   },
 
@@ -866,6 +983,8 @@ const SECTIONS = {
       ...('receipt_number' in r ? { receipt_number: r.receipt_number || '' } : {}),
       // 0098, money back from a vendor.
       ...('vendor_id' in r ? { vendor_id: r.vendor_id || null } : {}),
+      // 0118: Miscellaneous or Internal Purpose, present only when the database has the column.
+      ...('paid_to' in r ? { paid_to: r.paid_to || null } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // As with expenses: `amount` is derived by the guard from original_amount ×
@@ -892,6 +1011,8 @@ const SECTIONS = {
       // 0098. Sent only once the entry has one (picked on the form, or read
       // from a database with the column), so a credit still saves before 0098.
       ...optional(i, { vendor_id: nn }),
+      // 0118. Same rule, so a credit without one still saves before 0118.
+      ...optional(i, { paid_to: (v) => (v === 'misc' || v === 'internal' ? v : null) }),
     }),
   },
 
@@ -1656,7 +1777,13 @@ export const orgStore = {
     }
 
     if (!_cache[section]) _cache[section] = {};
-    _cache[section][id] = def.fromRow(updated);
+    // An employee read back carries no pay (employee_compensation): keep what
+    // the cache had, or the amount disappears from the screen.
+    const pay = (section === 'employees' || section === 'ex_employees') && merged
+      ? Object.fromEntries(['stipend', 'salary', 'currency', 'isPaid', 'paymentFrequency']
+        .filter((k) => k in merged).map((k) => [k, merged[k]]))
+      : {};
+    _cache[section][id] = { ...pay, ...def.fromRow(updated) };
     bumpWrite(section);
     persistToLS();
     notifySection(section);
@@ -1668,7 +1795,7 @@ export const orgStore = {
     // shown, then lost on reload. Only when the edit itself carries pay.
     if ((section === 'employees' || section === 'ex_employees')
       && ('stipend' in updates || 'salary' in updates)) {
-      await saveCompensation(id, merged);
+      await saveCompensation(id, merged, { strict: true });
     }
   },
 
@@ -1751,13 +1878,40 @@ export const orgStore = {
 
     if (_cache.ex_employees) delete _cache.ex_employees[id];
     if (!_cache.employees) _cache.employees = {};
-    _cache.employees[id] = employeeFromRow(updated);
+    // The row read back carries no pay (employee_compensation): keep theirs.
+    const pay = Object.fromEntries(['stipend', 'salary', 'currency', 'isPaid', 'paymentFrequency']
+      .filter((k) => k in merged).map((k) => [k, merged[k]]));
+    _cache.employees[id] = { ...pay, ...employeeFromRow(updated) };
     bumpWrite('employees');
     bumpWrite('ex_employees');
     persistToLS();
     notifySection('employees');
     notifySection('ex_employees');
     return _cache.employees[id];
+  },
+
+  /**
+   * An owner or admin changes someone's Employee ID (0102), current or
+   * ex-employee alike. Only the ID is written; the database keeps it unique
+   * (employees_org_code_idx) and refuses anyone but an owner or admin.
+   */
+  async setEmployeeCode(id, code) {
+    if (!_orgId) throw new Error('[orgStore] No orgId set');
+    const value = String(code || '').trim();
+    if (!value) throw new Error('Enter an Employee ID.');
+    const { error } = await supabase.from('employees').update({ employee_code: value }).eq('id', id);
+    if (error) {
+      if (error.code === '23505') throw new Error(`${value} is already someone else's Employee ID.`);
+      throw error;
+    }
+    for (const section of ['employees', 'ex_employees']) {
+      if (_cache[section]?.[id]) {
+        _cache[section][id] = { ..._cache[section][id], employee_code: value };
+        bumpWrite(section);
+        notifySection(section);
+      }
+    }
+    persistToLS();
   },
 
   async setSection(section, value) {
@@ -2085,8 +2239,9 @@ async function nextDocumentNumber(type) {
 }
 
 // Pay is split into employee_compensation so a member or viewer cannot read it.
-// A non-admin write is rejected by RLS; that is not fatal to saving the employee.
-async function saveCompensation(employeeId, data) {
+// A non-admin write is rejected by RLS. On a new employee that is not fatal
+// (the person is already saved); on an edit (`strict`) it is reported.
+async function saveCompensation(employeeId, data, { strict = false } = {}) {
   const amount = data?.stipend ?? data?.salary;
   if (amount === undefined || amount === null || amount === '') return;
 
@@ -2099,7 +2254,29 @@ async function saveCompensation(employeeId, data) {
     payment_frequency: data.paymentFrequency || 'Monthly',
   }, { onConflict: 'employee_id' });
 
-  if (error) console.warn('[orgStore] compensation not saved:', error.message);
+  // A pay figure that was typed and not saved is reported, not swallowed: the
+  // form used to say "updated" while the amount went nowhere.
+  if (error) {
+    if (strict) throw new Error(`Pay was not saved: ${error.message}`);
+    console.warn('[orgStore] compensation not saved:', error.message);
+    return;
+  }
+
+  // The employee row read back after a write carries no pay (it is another
+  // table), so the cache is given what was just saved, or the form and the
+  // registry show the old amount (or none) until a reload.
+  for (const section of ['employees', 'ex_employees']) {
+    const cur = _cache[section]?.[employeeId];
+    if (!cur) continue;
+    _cache[section][employeeId] = {
+      ...cur,
+      stipend: num(amount, 0), salary: num(amount, 0),
+      currency: (data.currency || baseCurrency()).slice(0, 3).toUpperCase(),
+      isPaid: bool(data.isPaid, true), paymentFrequency: data.paymentFrequency || 'Monthly',
+    };
+    persistToLS();
+    notifySection(section);
+  }
 }
 
 // Notification read state is per-user now. Under Firebase one person opening a

@@ -86,12 +86,13 @@ export const isOwnerOrAdmin = () => ['owner', 'admin'].includes(orgStore.getRole
  * the project in place with whatever did save, and says which part failed.
  */
 // Columns a later migration added: until it is applied, a write leaves them out.
-const PROJECT_OPTIONAL = [['delivery_method']];
+const PROJECT_OPTIONAL = [['delivery_method'], ['social_enabled']];
 const NEEDS_0083 = 'The type of project was not kept: it needs database update 0083.';
+const NEEDS_0119 = 'Hiding Social was not kept: it needs database update 0119.';
 
 export async function createProject(data, { members = [], milestones = [] } = {}) {
     const { result: project, dropped } = await run(() => saveWithOptional((d) => orgStore.addItem('projects', d), data, PROJECT_OPTIONAL));
-    const problems = dropped.length ? [NEEDS_0083] : [];
+    const problems = dropped.map((g) => (g[0] === 'social_enabled' ? NEEDS_0119 : NEEDS_0083));
     for (const m of members.filter((x) => x.employee_id)) {
         try { await orgStore.addItem('project_members', { ...m, project_id: project.id }); }
         catch (e) { problems.push(friendlyError(e).message); }

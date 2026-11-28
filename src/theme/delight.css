@@ -1,0 +1,198 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   "Delight" layer (Nov 2026). See theme/delight.js: everything here is scoped
+   under .edge-shell.delight, which ModuleShell adds while DELIGHT is true.
+   Selection stays light blue and actions stay navy (the agreed rule); the
+   module colour is decoration only: the aurora, icon chips, glows, accents.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. one accent across the app: sky blue, deepening to indigo ────────── */
+/* (Tried a colour per module first; one colour reads as one product.) */
+.edge-shell.delight { --mod: #0EA5E9; --mod-2: #6366F1; }
+
+/* The page title carries the module's colour as a small gradient mark. */
+.edge-shell.delight > div > header h1::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin: 0 9px 0 1px;
+  border-radius: 3px;
+  vertical-align: 1px;
+  background: linear-gradient(135deg, var(--mod), var(--mod-2));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mod) 18%, transparent);
+}
+
+/* ── 2. aurora: a soft wash of the module colour at the top of each page ── */
+.edge-shell.delight #edge-main,
+.edge-shell.delight .edge-pagehead {
+  background-image:
+    radial-gradient(900px 230px at 0% 0%, color-mix(in srgb, var(--mod) 12%, transparent), transparent 70%),
+    radial-gradient(760px 210px at 100% 0%, color-mix(in srgb, var(--mod-2) 10%, transparent), transparent 70%);
+  background-repeat: no-repeat;
+  background-attachment: local;
+}
+/* A tabbed module's page heading sits above the page: the wash starts there. */
+.edge-shell.delight .edge-pagehead ~ #edge-main { background-image: none; }
+/* Kit pages paint their own panel colour; let the aurora show through. */
+.edge-shell.delight #edge-main .edge-page { background: transparent !important; }
+
+/* ── 3. sections rise in as a page opens, one after another ─────────────── */
+@keyframes dl-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+/* Zero specificity: any animation a component sets itself still wins. */
+:where(.edge-shell.delight #edge-main > * > :not(style, [role="dialog"])) {
+  animation: dl-rise .5s cubic-bezier(.2, .8, .2, 1) backwards;
+}
+:where(.edge-shell.delight #edge-main > * > :nth-child(2)) { animation-delay: .05s; }
+:where(.edge-shell.delight #edge-main > * > :nth-child(3)) { animation-delay: .10s; }
+:where(.edge-shell.delight #edge-main > * > :nth-child(4)) { animation-delay: .15s; }
+:where(.edge-shell.delight #edge-main > * > :nth-child(5)) { animation-delay: .20s; }
+:where(.edge-shell.delight #edge-main > * > :nth-child(n+6)) { animation-delay: .25s; }
+
+/* ── 4. stat cards: a glow in the module colour, a lift on hover ─────────── */
+.edge-shell.delight :is(.stat-box, .prod-stat, .pro-stat-card, .records-summary-card) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .25s ease, border-color .2s ease, background-color .2s ease;
+}
+/* A light sheen across the tile (light mode only; dark keeps its flat tint). */
+.edge-shell.delight[data-edge-dark="0"] :is(.stat-box, .prod-stat, .pro-stat-card, .records-summary-card) {
+  background-image: linear-gradient(140deg, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 58%) !important;
+}
+.edge-shell.delight :is(.stat-box, .prod-stat, .pro-stat-card, .records-summary-card)::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -70px;
+  right: -60px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--mod) 26%, transparent), transparent 68%);
+  transition: transform .5s cubic-bezier(.2, .8, .2, 1);
+}
+.edge-shell.delight :is(.stat-box, .prod-stat, .pro-stat-card, .records-summary-card):hover {
+  transform: translateY(-2px) !important;
+  border-color: color-mix(in srgb, var(--mod) 45%, transparent) !important;
+  box-shadow: 0 14px 28px -16px color-mix(in srgb, var(--mod) 60%, transparent) !important;
+}
+.edge-shell.delight :is(.stat-box, .prod-stat, .pro-stat-card, .records-summary-card):hover::after {
+  transform: scale(1.3) translate(-10px, 10px);
+}
+/* Icon chips take the module colour. */
+.edge-shell.delight :is(.stat-box .stat-box-icon, .prod-stat .prod-stat-icon) {
+  color: var(--mod) !important;
+  background: color-mix(in srgb, var(--mod) 12%, var(--edge-panel, #fff)) !important;
+  border-color: color-mix(in srgb, var(--mod) 28%, transparent) !important;
+}
+.edge-shell.delight :is(.edge-stat-value, .prod-stat-value, .pro-stat-value, .records-summary-count) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 5. primary buttons: a depth gradient, a sheen that sweeps on hover ─── */
+.edge-shell.delight :is(.edge-btn-primary:not(.edge-btn-soft), .prod-add-btn) {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, 0)) !important;
+  transition: transform .12s ease, box-shadow .2s ease, background-color .15s ease;
+}
+.edge-shell.delight :is(.edge-btn-primary:not(.edge-btn-soft), .prod-add-btn)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .32) 50%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform .7s cubic-bezier(.2, .8, .2, 1);
+}
+.edge-shell.delight :is(.edge-btn-primary:not(.edge-btn-soft), .prod-add-btn):hover:not(:disabled) {
+  box-shadow: 0 8px 18px -10px rgba(var(--brand-navy-rgb, 20, 41, 62), .65) !important;
+}
+.edge-shell.delight :is(.edge-btn-primary:not(.edge-btn-soft), .prod-add-btn):hover:not(:disabled)::after {
+  transform: translateX(130%);
+}
+.edge-shell.delight :is(.edge-btn, .prod-add-btn, .pro-chip):active:not(:disabled) {
+  transform: scale(.97);
+}
+
+/* ── 6. tables: the hovered row is marked in the module colour ───────────── */
+.edge-shell.delight :is(.edge-tr, .fin-list-table tbody tr, .prod-perf-table tbody tr):hover > td:first-child {
+  box-shadow: inset 3px 0 0 var(--mod);
+}
+
+/* ── 7. Today: the greeting as a hero ────────────────────────────────────── */
+@keyframes dl-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-40px, 24px) scale(1.12); }
+}
+.edge-shell.delight .td-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 22px 24px !important;
+  border-radius: 14px;
+  background: linear-gradient(120deg, var(--brand-navy, #14293E) 0%, color-mix(in srgb, var(--brand-navy, #14293E) 78%, var(--mod-2)) 60%, color-mix(in srgb, var(--brand-navy, #14293E) 62%, var(--mod)) 100%);
+  box-shadow: 0 18px 40px -24px rgba(var(--brand-navy-rgb, 20, 41, 62), .8);
+}
+.edge-shell.delight .td-hero::before,
+.edge-shell.delight .td-hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: dl-drift 9s ease-in-out infinite alternate;
+}
+.edge-shell.delight .td-hero::before {
+  width: 440px; height: 440px; right: -120px; top: -250px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--mod) 55%, transparent), transparent 65%);
+}
+.edge-shell.delight .td-hero::after {
+  width: 380px; height: 380px; left: 28%; bottom: -270px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--mod-2) 38%, transparent), transparent 65%);
+  animation-duration: 12s;
+  animation-direction: alternate-reverse;
+}
+.edge-shell.delight .td-hero p { color: rgba(255, 255, 255, .72) !important; }
+.edge-shell.delight .td-hero h2 { color: #fff !important; font-size: 24px !important; }
+.edge-shell.delight .td-hero > span {
+  background: rgba(255, 255, 255, .1) !important;
+  border-color: rgba(255, 255, 255, .2) !important;
+  color: #fff !important;
+  backdrop-filter: blur(6px);
+}
+.edge-shell.delight .td-hero > span svg { color: rgba(255, 255, 255, .8) !important; }
+
+/* ── 8. empty states: a floating orb instead of a bare line of text ─────── */
+@keyframes dl-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.edge-shell.delight .edge-empty::before {
+  content: '';
+  display: block;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 16px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .85), transparent 38%),
+    linear-gradient(135deg, var(--mod), var(--mod-2));
+  box-shadow: 0 16px 30px -14px color-mix(in srgb, var(--mod) 70%, transparent);
+  opacity: .9;
+  animation: dl-bob 3.4s ease-in-out infinite;
+}
+
+/* ── motion off for people who ask for less ──────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :where(.edge-shell.delight #edge-main > * > *),
+  .edge-shell.delight .td-hero::before,
+  .edge-shell.delight .td-hero::after,
+  .edge-shell.delight .edge-empty::before { animation: none !important; }
+  .edge-shell.delight :is(.stat-box, .prod-stat, .pro-stat-card, .records-summary-card):hover { transform: none !important; }
+  .edge-shell.delight :is(.edge-btn-primary, .prod-add-btn)::after { display: none; }
+}

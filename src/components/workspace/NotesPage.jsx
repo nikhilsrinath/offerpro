@@ -258,7 +258,7 @@ export default function NotesPage() {
             {ws.missing ? <MissingTables what="Notes" /> : (
                 <>
                     <div style={{
-                        display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: 10, marginBottom: 14,
+                        display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: 10, marginBottom: 12,
                         background: t.card, border: '1px solid ' + t.line, borderRadius: 12, position: 'sticky', top: 0, zIndex: 20,
                     }}>
                         <Seg value={archived ? 'archive' : 'notes'} onChange={(v) => setParam('view', v === 'archive' ? 'archive' : '')} label="Notes or archive" options={[

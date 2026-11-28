@@ -86,7 +86,6 @@ function DashboardPage({ project, page, navigate }) {
     const ctx = { ...viz, board, open, navigate, cols, tileCols };
     const view = page.id;
     const pad = winW < 760 ? 12 : 24;
-    const name = project.name || project.code || 'Project';
     const tabs = (
         <PageTabs label="Dashboard pages" current={view} pages={projectDashboards()}
             onOpen={(id) => navigate(`/projects/${projectRef(project.id)}/dashboard/${id}`)} />
@@ -103,7 +102,8 @@ function DashboardPage({ project, page, navigate }) {
                                 fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 3,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>
-                                <Link to={projectSectionPath(project.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
+                                {/* The rail item this page sits under; the project's name is in the top bar. */}
+                                <Link to={projectSectionPath(project.id)} style={{ color: 'inherit', textDecoration: 'none' }}>Dashboard</Link>
                             </div>
                             <h1 style={{
                                 margin: 0, fontSize: winW < 760 ? 18 : 20, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25,

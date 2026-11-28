@@ -384,7 +384,7 @@ export default function VoiceCall({ a, onClose }) {
 
     let body;
     if (error || phase === 'unsupported') {
-        body = <p className="vc-line is-hint">{error || 'This browser has no speech recognition. Open Opstead in Chrome or Edge to talk to EdgeAI.'}</p>;
+        body = <p className="vc-line is-hint">{error || 'This browser has no speech recognition. Open Opstead in Chrome or Edge to talk to OpsteadAI.'}</p>;
     } else if (phase === 'listening') {
         body = heard
             ? (
@@ -408,7 +408,7 @@ export default function VoiceCall({ a, onClose }) {
                         <span>{answer.slice(spokenTo)}</span>
                     </p>
                 ) : (
-                    <p className="vc-a vc-wait" aria-label="EdgeAI is thinking"><span /><span /><span /></p>
+                    <p className="vc-a vc-wait" aria-label="OpsteadAI is thinking"><span /><span /><span /></p>
                 )}
                 {trimmed && <p className="vc-more">The full answer is in the chat.</p>}
             </div>
@@ -420,16 +420,16 @@ export default function VoiceCall({ a, onClose }) {
     const orbLive = phase === 'speaking' || phase === 'thinking';
 
     return (
-        <div ref={rootRef} className="vc" role="dialog" aria-modal="true" aria-label="Voice call with EdgeAI" tabIndex={-1}>
+        <div ref={rootRef} className="vc" role="dialog" aria-modal="true" aria-label="Voice call with OpsteadAI" tabIndex={-1}>
             <div className="vc-top">
-                <span className="vc-brand">EdgeAI</span>
+                <span className="vc-brand">OpsteadAI</span>
                 <span className="vc-time" aria-label={`Call time ${mmss}`}>{mmss}</span>
             </div>
 
             <div className="vc-stage">
                 <button
                     type="button" className="vc-orb" onClick={cutIn} disabled={!orbLive}
-                    aria-label={orbLive ? 'Interrupt and speak' : 'EdgeAI'}
+                    aria-label={orbLive ? 'Interrupt and speak' : 'OpsteadAI'}
                     title={orbLive ? 'Tap to interrupt' : undefined}
                     style={{ width: orbSize, height: orbSize }}
                 >

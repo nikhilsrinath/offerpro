@@ -1,7 +1,7 @@
 import React from 'react';
 import { RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useT, MONO, fmtDate } from '../ui/edgeUtils';
-import { Panel, Btn, Table, Tr, Td, Empty, Status, Muted, Grid, Bar } from '../ui/edge';
+import { Panel, Btn, Table, Tr, Td, Empty, Status, Muted, Grid, Bar, TableTitle } from '../ui/edge';
 import { kindLabel } from '../../services/brainService';
 
 /* Brain Health: whether what you are reading can be trusted.
@@ -144,11 +144,10 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                 </Panel>
             </Grid>
 
-            <Panel title="Recent runs" pad={0}>
-                {runs.length === 0 ? (
-                    <Empty>No synchronisation has run yet.</Empty>
-                ) : (
-                    <Table cols={[
+            {runs.length === 0 ? (
+                <Panel title="Recent runs"><Empty>No synchronisation has run yet.</Empty></Panel>
+            ) : (
+                    <Table lead={<TableTitle>Recent runs</TableTitle>} cols={[
                         { key: 'when', label: 'Started' },
                         { key: 'mode', label: 'Mode' },
                         { key: 'status', label: 'Result' },
@@ -171,8 +170,7 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                             </Tr>
                         ))}
                     </Table>
-                )}
-            </Panel>
+            )}
         </div>
     );
 }

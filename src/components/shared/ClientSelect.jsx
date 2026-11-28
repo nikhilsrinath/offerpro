@@ -40,8 +40,10 @@ const matches = (c, q) => [nameOf(c), c.person_name, c.email || c.clientEmail, c
  *
  * Without a project it lists `clients` when given, else the whole directory.
  * `noneLabel` adds a first option that clears the choice ("Not recorded").
+ * `extra` adds options above the clients that are not clients
+ * ([{ value, label }], e.g. Miscellaneous): picking one calls onChange(value, null).
  */
-export default function ClientSelect({ id, clients = null, value, onChange, projectId = null, placeholder = 'Select a client…', noneLabel = null, disabled = false }) {
+export default function ClientSelect({ id, clients = null, value, onChange, projectId = null, placeholder = 'Select a client…', noneLabel = null, extra = [], disabled = false }) {
     const toast = useToast();
     const all = useSection('customers');
     const links = useSection('project_clients');
@@ -79,7 +81,9 @@ export default function ClientSelect({ id, clients = null, value, onChange, proj
     const others = onProject ? live.filter((c) => !onProject.has(c.id)) : [];
 
     const chosen = all.find((c) => c.id === value) || (clients || []).find((c) => c.id === value) || null;
+    const chosenExtra = extra.find((x) => x.value === value) || null;
     const q = query.trim().toLowerCase();
+    const extraShown = browsing ? [] : extra.filter((x) => !q || x.label.toLowerCase().includes(q));
     const list = browsing ? others : own;
     const shown = q ? list.filter((c) => matches(c, q)) : list;
 
@@ -108,7 +112,7 @@ export default function ClientSelect({ id, clients = null, value, onChange, proj
         <div ref={boxRef} className="vsel" onKeyDown={onKeyDown}>
             <button ref={btnRef} id={id} type="button" className="vsel-btn" aria-haspopup="listbox" aria-expanded={open} disabled={disabled}
                 onClick={() => (open ? close() : setOpen(true))}>
-                <span className={chosen ? '' : 'vsel-placeholder'}>{chosen ? nameOf(chosen) : noneLabel || placeholder}</span>
+                <span className={chosen || chosenExtra ? '' : 'vsel-placeholder'}>{chosen ? nameOf(chosen) : chosenExtra ? chosenExtra.label : noneLabel || placeholder}</span>
                 <ChevronDown size={15} aria-hidden="true" />
             </button>
 
@@ -128,7 +132,14 @@ export default function ClientSelect({ id, clients = null, value, onChange, proj
                             {!value && <Check size={13} className="prodpick-item-check" aria-hidden="true" />}
                         </button>
                     )}
-                    {shown.length === 0 ? (
+                    {extraShown.map((x) => (
+                        <button key={x.value} type="button" role="option" aria-selected={x.value === value} className="prodpick-item vsel-item"
+                            onClick={() => { onChange(x.value, null); close(); btnRef.current?.focus(); }}>
+                            <span className="prodpick-item-main"><span className="prodpick-item-name">{x.label}</span></span>
+                            {x.value === value && <Check size={13} className="prodpick-item-check" aria-hidden="true" />}
+                        </button>
+                    ))}
+                    {shown.length === 0 && extraShown.length > 0 && q ? null : shown.length === 0 ? (
                         <div className="prodpick-empty">{emptyText}</div>
                     ) : (
                         <div className="prodpick-list" role="listbox" aria-label={browsing ? 'All clients' : 'Clients'}>

@@ -842,7 +842,7 @@ function paymentTool({ name, full, description }) {
         op: 'insert', table: 'payments', key: 'payment',
         row: {
           org_id: ctx.orgId, document_id: args.document, amount: args.amount, paid_on: args.date,
-          method: methodLabel(args.method), reference: args.reference || null, note: 'Recorded by EdgeAI',
+          method: methodLabel(args.method), reference: args.reference || null, note: 'Recorded by OpsteadAI',
           submitted_by_recipient: false, confirmed_at: new Date().toISOString(), confirmed_by: ctx.user.id,
         },
       }];

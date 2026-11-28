@@ -1,5 +1,5 @@
 {
-  "name": "Opstead | Business Operations Platform",
+  "name": "Opstead | Agentic Operating System for Businesses",
   "short_name": "Opstead",
   "start_url": "/",
   "display": "standalone",
@@ -7,13 +7,13 @@
   "theme_color": "#000000",
   "icons": [
     {
-      "src": "opstead-mark-192.png",
+      "src": "opstead-app-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "opstead-mark-512.png",
+      "src": "opstead-app-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

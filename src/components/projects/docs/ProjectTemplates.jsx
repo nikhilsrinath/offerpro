@@ -195,7 +195,7 @@ export default function ProjectTemplates({ project, onOpen }) {
     ]);
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
         <ReadyTemplates project={project} />
         <SetupGate setup={setup} what="custom templates">
             <Panel title="Custom Templates" note={`${templates.length} written for this project`}

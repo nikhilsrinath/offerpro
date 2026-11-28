@@ -31,6 +31,54 @@ export function monthlySalary(emp) {
   }
 }
 
+/** One person's pay revisions (0121), oldest first. */
+export const revisionsOf = (revisions, employeeId) => (revisions || [])
+  .filter((r) => r.employee_id === employeeId && r.effective_from)
+  .sort((a, b) => String(a.effective_from).localeCompare(String(b.effective_from)));
+
+/**
+ * The revision in effect on a day ('YYYY-MM-DD'): the latest one from that day
+ * or before. `list` is one person's revisions, oldest first. Null before the
+ * first one.
+ */
+export function revisionOn(list, day) {
+  let found = null;
+  for (const r of list || []) {
+    if (String(r.effective_from) <= day) found = r;
+    else break;
+  }
+  return found;
+}
+
+/**
+ * Pay for one month ('YYYY-MM') by their pay history: the latest revision
+ * that took effect by the month's end, so the month someone joined or was
+ * revised in is at the new rate. Before any revision, or with none, their pay
+ * now (monthlySalary).
+ */
+export function salaryForMonth(emp, monthKey, list) {
+  if (!hasSalary(emp) && !(list || []).length) return null;
+  if (emp?.isPaid === false || emp?.isPaid === 'false') return 0;
+  const r = monthKey ? revisionOn(list, `${monthKey}-${pad(daysInMonth(monthKey))}`) : null;
+  return r ? monthlySalary({ ...emp, salary: r.amount }) : monthlySalary(emp);
+}
+
+/** Every month from the one they joined in to this one, newest first ('YYYY-MM'). */
+export function monthsSince(startDate, today = new Date(), fallback = 12) {
+  const now = monthKeyOf(today);
+  const from = startDate ? monthKeyOf(startDate) : null;
+  const out = [];
+  let [y, m] = now.split('-').map(Number);
+  for (let i = 0; i < 600; i += 1) {
+    const k = `${y}-${pad(m)}`;
+    if (from ? k < from : i >= fallback) break;
+    out.push(k);
+    m -= 1;
+    if (m === 0) { m = 12; y -= 1; }
+  }
+  return out.length ? out : [now];
+}
+
 /** 'YYYY-MM' of a date (string or Date). */
 export function monthKeyOf(d = new Date()) {
   if (typeof d === 'string') return d.slice(0, 7);

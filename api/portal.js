@@ -484,6 +484,10 @@ async function applyHrNotice(grant, document) {
   }
 
   if (document.type === 'termination') {
+    // A notice written from the template only records the acknowledgement;
+    // the person stays on the team until the admin presses End. Older notices
+    // (no flag) still end the employment as before.
+    if (document.ends_employment === false) return;
     const { error } = await admin.from('employees')
       .update({
         exited_at: document.last_day || new Date().toISOString(),

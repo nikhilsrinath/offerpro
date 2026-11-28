@@ -44,9 +44,9 @@ export default function OverviewTab({
   const firstName = (me.full_name || '').split(/\s+/)[0];
 
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
+    <div style={{ display: 'grid', gap: 12 }}>
       {/* ── hero: who, and today ─────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.7fr) minmax(260px, 1fr)' }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.7fr) minmax(260px, 1fr)' }}>
         <div style={{
           border: '1px solid ' + t.line, borderRadius: 12, background: t.panel, padding: 18,
           display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0,
@@ -117,7 +117,7 @@ export default function OverviewTab({
       </div>
 
       {/* ── charts ───────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.6fr) minmax(0, 1fr)' }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.6fr) minmax(0, 1fr)' }}>
         <Panel title="Hours per day" note="dashed line = 8h">
           <HoursPerDayChart series={series} empty="No completed days this month yet. Check in and out and your hours will appear here." />
         </Panel>
@@ -127,7 +127,7 @@ export default function OverviewTab({
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'repeat(3, minmax(0, 1fr))' }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'repeat(3, minmax(0, 1fr))' }}>
         <Panel title="Check-in time" note="this month">
           <CheckInChart points={checkIns} />
         </Panel>

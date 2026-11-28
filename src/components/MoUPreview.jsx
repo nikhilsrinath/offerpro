@@ -43,7 +43,7 @@ export default function MoUPreview({ formData }) {
   };
 
   return (
-    <div className="a4-sheet" data-edit-root>
+    <div className="a4-sheet offer-font" data-edit-root>
       {/* Professional Header */}
       <DocumentHeader formData={headerData} wrapLogo={(img) => (
         <Editable field="logoAdjust" label="Logo" value={formData.logoAdjust} origin="left top" style={{ display: 'inline-block' }}>{img}</Editable>

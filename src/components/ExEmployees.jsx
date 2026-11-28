@@ -5,11 +5,14 @@ import { listMembers } from '../services/permissionService';
 import { DEPT_PALETTE } from './TeamHierarchy';
 import {
     Page, Toolbar, Panel, Row, Btn, Search, Table, Tr, Td, Avatar, Status,
-    StatBand, Breakdown, Empty, Loading, Modal, Muted,
+    StatBand, Breakdown, Empty, Loading, Muted, Modal, Field, Input,
 } from './ui/edge';
 import { useT, fmtDate } from './ui/edgeUtils';
 import { confirmDialog } from '../services/confirm';
 import { useToast } from './shared/Toast';
+import { useAuth } from '../context/AuthContext';
+import { Detail } from './Employees';
+import { hasSalary } from '../shared/payroll';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Ex-employees.
@@ -19,12 +22,6 @@ import { useToast } from './shared/Toast';
    want. The one live question, can they still sign in, is a status word on
    the row rather than a shield icon whose colour you have to interpret.
    ══════════════════════════════════════════════════════════════════════════ */
-
-const TYPE_LABEL = {
-    fulltime: 'Full-time', parttime: 'Part-time',
-    internship: 'Intern', intern: 'Intern',
-    contract: 'Contract', collaboration: 'Collaborator',
-};
 
 function getDisplayName(emp) {
     if (emp.studentName) return emp.studentName;
@@ -59,6 +56,7 @@ export default function ExEmployees() {
     const t = useT();
     const toast = useToast();
     const { activeOrg } = useOrg();
+    const { user } = useAuth();
     const [people, setPeople] = useState([]);
     // Null means "not known": listMembers is admin-only, so a member viewing
     // this page gets no claim about anyone's access rather than a wrong one.
@@ -111,11 +109,30 @@ export default function ExEmployees() {
         return Object.entries(m).map(([label, value]) => ({ label, value, color: deptColor(label) }));
     }, [people]);
 
-    // Deleting removes the record for good. A person other records still point
-    // at (their documents, tasks) is refused by the database, and says so.
-    const remove = async (emp) => {
+    // Revert: they join again on their own record (same ID, history and
+    // payments), back on the registry. Pay and projects stay as they were.
+    const revert = async (emp) => {
         const name = getDisplayName(emp) || 'this person';
         if (!(await confirmDialog({
+            title: 'Revert to employee',
+            message: `Bring ${name} back onto the team? They move from Ex-Employees to the registry, with their record as it was. Their exit date and reason are cleared.`,
+            confirmLabel: 'Revert',
+        }))) return;
+        try {
+            await orgStore.rejoinEmployee(emp.id);
+            setSelected(null);
+            toast(`${name} is back on the team`, 'success');
+        } catch (err) {
+            toast(`Could not revert ${name}: ${err.message}`, 'error');
+        }
+    };
+
+    // Deleting removes the record for good. A person other records still point
+    // at (their documents, tasks) is refused by the database, and says so.
+    // `confirmed`: the sheet's Delete has asked already.
+    const remove = async (emp, confirmed = false) => {
+        const name = getDisplayName(emp) || 'this person';
+        if (!confirmed && !(await confirmDialog({
             title: 'Delete ex-employee',
             message: `Delete ${name} from the archive? This removes the record permanently and cannot be undone.`,
         }))) return;
@@ -125,6 +142,37 @@ export default function ExEmployees() {
             toast(`${name} deleted`, 'success');
         } catch (err) {
             toast(`Could not delete ${name}: ${err.message}`, 'error');
+        }
+    };
+
+    // An owner or admin may change someone's Employee ID (0102), here as on a
+    // current employee's form: to put past hires in joining order, once.
+    const canSetId = ['owner', 'admin'].includes(orgStore.getRole());
+    const [codeFor, setCodeFor] = useState(null);
+    const [code, setCode] = useState('');
+    const [codeError, setCodeError] = useState('');
+    const [codeSaving, setCodeSaving] = useState(false);
+    const openCode = (emp) => { setCodeFor(emp); setCode(emp.employee_code || ''); setCodeError(''); };
+    const saveCode = async () => {
+        const value = code.trim();
+        if (!value) { setCodeError('Enter an Employee ID.'); return; }
+        if (value === (codeFor.employee_code || '')) { setCodeFor(null); return; }
+        const lower = value.toLowerCase();
+        const taken = [...orgStore.getSectionAsList('employees'), ...orgStore.getSectionAsList('ex_employees')]
+            .find((e) => e.id !== codeFor.id && (e.employee_code || '').toLowerCase() === lower);
+        if (taken) {
+            setCodeError(`${getDisplayName(taken) || 'Someone'}${taken.exited_at ? ' (ex-employee)' : ''} already has ${taken.employee_code}. Give them another ID first.`);
+            return;
+        }
+        setCodeSaving(true);
+        try {
+            await orgStore.setEmployeeCode(codeFor.id, value);
+            toast(`${getDisplayName(codeFor) || 'Their'} Employee ID is now ${value}`, 'success');
+            setCodeFor(null);
+        } catch (err) {
+            setCodeError(err.message || 'Could not change the Employee ID.');
+        } finally {
+            setCodeSaving(false);
         }
     };
 
@@ -156,20 +204,20 @@ export default function ExEmployees() {
             {stats.stillIn ? (
                 <div style={{
                     border: '1px solid ' + t.lineStrong, borderRadius: 10,
-                    padding: '11px 13px', marginBottom: 14, fontSize: 12.5, color: t.dim, lineHeight: 1.7,
+                    padding: '11px 13px', marginBottom: 12, fontSize: 12.5, color: t.dim, lineHeight: 1.7,
                 }}>
                     {stats.stillIn} {stats.stillIn === 1 ? 'person' : 'people'} in this archive still hold a
                     membership and can sign in. Remove their access from Settings → Members.
                 </div>
             ) : null}
 
-            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: byDept.length > 1 ? 'minmax(0,1fr) 258px' : '1fr', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gap: 12, gridTemplateColumns: byDept.length > 1 ? 'minmax(0,1fr) 258px' : '1fr', alignItems: 'start' }}>
                 <div style={{ minWidth: 0 }}>
                     {list.length === 0 ? (
                         <Panel>
                             <Empty>
                                 {people.length === 0
-                                    ? 'Nobody has left yet. People arrive here once a termination notice is acknowledged. Nothing is deleted.'
+                                    ? 'Nobody has left yet. People arrive here once their employment is ended. Nothing is deleted, and Revert brings them back.'
                                     : 'Nobody matches that search.'}
                             </Empty>
                         </Panel>
@@ -182,7 +230,7 @@ export default function ExEmployees() {
                             { key: 't', label: 'Tenure' },
                             { key: 'l', label: 'Left' },
                             { key: 'a', label: 'Access' },
-                            { key: 'x', label: '', align: 'right', width: 150 },
+                            { key: 'x', label: '', align: 'right', width: canSetId ? 300 : 214 },
                         ]}>
                             {list.map((emp) => {
                                 const name = getDisplayName(emp);
@@ -214,6 +262,11 @@ export default function ExEmployees() {
                                         <Td align="right">
                                             <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                                                 <Btn size="sm" onClick={(e) => { e.stopPropagation(); setSelected(emp); }}>Open</Btn>
+                                                {canSetId && (
+                                                    <Btn size="sm" aria-label={`Change Employee ID of ${name || 'ex-employee'}`}
+                                                        onClick={(e) => { e.stopPropagation(); openCode(emp); }}>Change ID</Btn>
+                                                )}
+                                                <Btn size="sm" onClick={(e) => { e.stopPropagation(); revert(emp); }}>Revert</Btn>
                                                 <Btn size="sm" aria-label={`Delete ${name || 'ex-employee'}`}
                                                     onClick={(e) => { e.stopPropagation(); remove(emp); }}>Delete</Btn>
                                             </Row>
@@ -232,39 +285,30 @@ export default function ExEmployees() {
                 )}
             </div>
 
+            {/* The same sheet as a current employee's, read only, with Revert. */}
             {selected && (
-                <Modal open onClose={() => setSelected(null)}
-                    title={getDisplayName(selected) || 'Former employee'}
-                    note={[selected.role, selected.department].filter(Boolean).join(' · ') || undefined}
-                    footer={<Row gap={8}><Btn onClick={() => remove(selected)}>Delete</Btn><Btn primary onClick={() => setSelected(null)}>Close</Btn></Row>}>
-                    <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
-                        {[
-                            ['Employee ID', selected.employee_code],
-                            ['Email', selected.email],
-                            ['Phone', selected.phone],
-                            ['Employment', TYPE_LABEL[selected.offerType] || null],
-                            ['Started', selected.startDate || selected.start_date ? fmtDate(selected.startDate || selected.start_date) : null],
-                            ['Last day', leftOn(selected) ? fmtDate(leftOn(selected)) : null],
-                            ['Tenure', tenure(selected)],
-                            ['Reported to', selected.supervisorName],
-                            ['Reason', selected.termination_reason || selected.exit_reason],
-                        ].filter(([, v]) => v && v !== '-').map(([k, v], i) => (
-                            <div key={k} style={{
-                                display: 'flex', gap: 12, padding: '9px 13px',
-                                borderTop: i ? '1px solid ' + t.lineSoft : 'none',
-                            }}>
-                                <span style={{ width: 98, flexShrink: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
-                                    {k.toUpperCase()}
-                                </span>
-                                <span style={{ fontSize: 13, color: t.text, minWidth: 0, wordBreak: 'break-word' }}>{v}</span>
-                            </div>
-                        ))}
-                    </div>
-                    {access(selected)?.tone === 'down' && (
-                        <p style={{ margin: '13px 0 0', fontSize: 12, color: t.down, lineHeight: 1.7 }}>
-                            This person still holds a membership and can sign in. Remove it from Settings → Members.
-                        </p>
-                    )}
+                <Detail former emp={selected} orgId={activeOrg?.id} org={activeOrg}
+                    currentUserEmail={user?.email}
+                    canSeePay={hasSalary(selected) || ['owner', 'admin'].includes(orgStore.getRole())}
+                    onClose={() => setSelected(null)}
+                    onDelete={() => remove(selected, true)}
+                    onRevert={() => revert(selected)} />
+            )}
+
+            {codeFor && (
+                <Modal open compact onClose={() => setCodeFor(null)} width={480} title="Change Employee ID"
+                    note={getDisplayName(codeFor)}
+                    footer={(
+                        <Row gap={8} style={{ justifyContent: 'flex-end' }}>
+                            <Btn onClick={() => setCodeFor(null)}>Cancel</Btn>
+                            <Btn primary onClick={saveCode} disabled={codeSaving}>{codeSaving ? 'Saving…' : 'Save'}</Btn>
+                        </Row>
+                    )}>
+                    <Field label="Employee ID" hint={codeError ? undefined : 'Must be unique. Changes wherever their ID is shown.'}>
+                        <Input value={code} autoFocus onChange={(e) => { setCode(e.target.value); setCodeError(''); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveCode(); }} />
+                    </Field>
+                    {codeError && <div style={{ fontSize: 12, color: t.down, marginTop: 8 }}>{codeError}</div>}
                 </Modal>
             )}
         </Page>

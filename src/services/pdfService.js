@@ -603,9 +603,9 @@ export const pdfService = {
     const lh = 5;
 
     const checkPage = (needed = 8) => { if (y + needed > pageBottom) { doc.addPage(); y = 28; } };
-    const setN = (sz = 11) => { doc.setFont('times', 'normal'); doc.setFontSize(sz); };
-    const setB = (sz = 11) => { doc.setFont('times', 'bold'); doc.setFontSize(sz); };
-    const setI = (sz = 11) => { doc.setFont('times', 'italic'); doc.setFontSize(sz); };
+    const setN = (sz = 11) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); };
+    const setB = (sz = 11) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(sz); };
+    const setI = (sz = 11) => { doc.setFont('helvetica', 'italic'); doc.setFontSize(sz); };
 
     const writeLines = (lines, x = mg) => {
       for (const line of lines) { checkPage(lh); doc.text(line, x, y); y += lh; }
@@ -917,9 +917,9 @@ export const pdfService = {
     const lh = 5;
 
     const checkPage = (needed = 8) => { if (y + needed > pageBottom) { doc.addPage(); y = 28; } };
-    const setN = (sz = 11) => { doc.setFont('times', 'normal'); doc.setFontSize(sz); };
-    const setB = (sz = 11) => { doc.setFont('times', 'bold'); doc.setFontSize(sz); };
-    const setI = (sz = 11) => { doc.setFont('times', 'italic'); doc.setFontSize(sz); };
+    const setN = (sz = 11) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); };
+    const setB = (sz = 11) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(sz); };
+    const setI = (sz = 11) => { doc.setFont('helvetica', 'italic'); doc.setFontSize(sz); };
 
     const writeLines = (lines, x = mg) => {
       for (const line of lines) { checkPage(lh); doc.text(line, x, y); y += lh; }
@@ -1174,8 +1174,9 @@ export const pdfService = {
 
   // Partnership and Custom templates. The text comes from buildAgreement(), the
   // same model AgreementPreview renders, so the PDF matches the live sheet.
-  generateAgreement: async (data, isPreview = false) => {
-    const built = buildAgreement(data);
+  // `build` makes another document of the same shape (noticeModel.buildNotice).
+  generateAgreement: async (data, isPreview = false, build = buildAgreement) => {
+    const built = build(data);
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const mg = 22;
     const pw = 210;
@@ -1185,9 +1186,9 @@ export const pdfService = {
     const lh = 5;
 
     const checkPage = (needed = 8) => { if (y + needed > pageBottom) { doc.addPage(); y = 28; } };
-    const setN = (sz = 11) => { doc.setFont('times', 'normal'); doc.setFontSize(sz); };
-    const setB = (sz = 11) => { doc.setFont('times', 'bold'); doc.setFontSize(sz); };
-    const setI = (sz = 11) => { doc.setFont('times', 'italic'); doc.setFontSize(sz); };
+    const setN = (sz = 11) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(sz); };
+    const setB = (sz = 11) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(sz); };
+    const setI = (sz = 11) => { doc.setFont('helvetica', 'italic'); doc.setFontSize(sz); };
 
     const writeLines = (lines, x = mg) => {
       for (const line of lines) { checkPage(lh); doc.text(line, x, y); y += lh; }
@@ -1201,6 +1202,9 @@ export const pdfService = {
         setN(); const lines = doc.splitTextToSize(text, cw - 10);
         checkPage(lh); doc.text('•', mg + 6, y);
         writeLines(lines, mg + 10); y += 1;
+      } else if (kind === 'line') {
+        // A line of an address block: no space under it.
+        setN(); writeLines(doc.splitTextToSize(text || '', cw));
       } else {
         if (kind === 'bold') setB(); else if (kind === 'italic') setI(10); else setN();
         writeLines(doc.splitTextToSize(text || '', cw)); y += kind === 'italic' ? 2 : 3;

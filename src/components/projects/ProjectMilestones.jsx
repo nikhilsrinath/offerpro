@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Panel, Row, Btn, Select, Table, Td, Empty, Muted, Modal, Field, Input, Textarea, Grid, Status, Bar, ConfirmBtn,
+    Panel, Row, Btn, Select, Table, Td, Empty, Muted, Modal, Field, Input, Textarea, Grid, Status, Bar, ConfirmBtn, TableTitle,
 } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { useSection, money, fmtDate } from '../financial/financeHooks';
@@ -70,16 +70,19 @@ export default function ProjectMilestones({ project }) {
         },
     });
 
+    const note = billedPct ? `${Number(billedPct).toFixed(2)}% of the contract is planned to bill` : locked ? 'Locked while the project is closed' : undefined;
     return (
-        <Panel title="Milestones"
-            note={billedPct ? `${Number(billedPct).toFixed(2)}% of the contract is planned to bill` : locked ? 'Locked while the project is closed' : undefined}
-            actions={canAdd && <Btn size="sm" primary onClick={() => setEditing({ project_id: project.id, sort_order: rows.length })}>Add milestone</Btn>}>
+        <>
             {rows.length === 0 ? (
-                <Empty action={canAdd && <Btn primary onClick={() => setEditing({ project_id: project.id, sort_order: 0 })}>Add the first milestone</Btn>}>
-                    No milestones yet. A milestone is a stage of the work, and can bill a share of the contract.
-                </Empty>
+                <Panel title="Milestones" note={note}>
+                    <Empty action={canAdd && <Btn primary onClick={() => setEditing({ project_id: project.id, sort_order: 0 })}>Add the first milestone</Btn>}>
+                        No milestones yet. A milestone is a stage of the work, and can bill a share of the contract.
+                    </Empty>
+                </Panel>
             ) : (
-                <Table id="project-milestones" cols={[
+                <Table id="project-milestones" lead={<TableTitle note={note}>Milestones</TableTitle>}
+                    actions={canAdd && <Btn primary onClick={() => setEditing({ project_id: project.id, sort_order: rows.length })}>Add milestone</Btn>}
+                    cols={[
                     { key: 'o', label: '', width: 64, always: true }, { key: 't', label: 'Milestone', always: true }, { key: 'd', label: 'Due' },
                     { key: 'b', label: 'Bills', align: 'right' }, { key: 'p', label: 'Progress', width: 120 },
                     { key: 's', label: 'Status' },
@@ -161,7 +164,7 @@ export default function ProjectMilestones({ project }) {
                 </Table>
             )}
             {editing && <MilestoneSheet project={project} milestone={editing} onClose={() => setEditing(null)} />}
-        </Panel>
+        </>
     );
 }
 

@@ -269,8 +269,9 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
                                 <button key={p.id} type="button" aria-pressed={on} aria-label={p.note} title={p.note} onClick={() => setPeriodId(p.id)}
                                     className="ov-seg" style={{
                                         minHeight: 24, padding: '0 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                                        fontFamily: MONO, fontSize: 12, fontWeight: on ? 500 : 400, background: on ? (t.isDark ? t.raised : t.card) : 'transparent',
-                                        boxShadow: on ? (t.isDark ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : '0 1px 2px rgba(16,24,40,.08), inset 0 0 0 1px ' + t.line) : 'none', color: on ? t.text : t.dim,
+                                        // The chosen period in the kit Seg's light-blue tint, navy text.
+                                        fontFamily: MONO, fontSize: 12, fontWeight: on ? 600 : 400, background: on ? t.soft : 'transparent',
+                                        boxShadow: 'none', color: on ? t.softText : t.dim,
                                     }}>{p.label}</button>
                             );
                         })}
@@ -513,7 +514,7 @@ export function FigureRow({ children, style }) {
     const t = useT();
     const items = React.Children.toArray(children).filter(Boolean);
     return (
-        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, marginBottom: 14, ...style }}>
+        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, marginBottom: 12, ...style }}>
             {items.map((c, i) => (
                 <div key={i} style={{ padding: '9px 11px', borderRadius: 8, background: t.panelAlt, border: '1px solid ' + t.line, minWidth: 0, display: 'flex' }}>{c}</div>
             ))}
@@ -558,8 +559,9 @@ export function MiniSeg({ value, onChange, options, label }) {
                 return (
                     <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={on} className="ov-seg" style={{
                         minHeight: 24, padding: '0 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: MONO, fontSize: 12,
-                        fontWeight: on ? 500 : 400, background: on ? t.raised : 'transparent', color: on ? t.text : t.dim,
-                        boxShadow: on ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : 'none',
+                        // The chosen option in the kit Seg's light-blue tint, navy text.
+                        fontWeight: on ? 600 : 400, background: on ? t.soft : 'transparent', color: on ? t.softText : t.dim,
+                        boxShadow: 'none',
                     }}>{o.label}</button>
                 );
             })}

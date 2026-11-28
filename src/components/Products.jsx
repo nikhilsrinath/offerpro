@@ -280,7 +280,8 @@ export default function Products({ projectId = null }) {
       {tab !== 'performance' ? (
         <>
           <div className="prod-toolbar">
-            <div className="prod-search">
+            {/* Wide enough for the whole hint to show. */}
+            <div className="prod-search" style={{ flexBasis: 360 }}>
               <Search size={14} />
               <input
                 aria-label="Search products"

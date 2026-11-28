@@ -38,20 +38,24 @@ export default function PaymentPositionCards() {
           key={key}
           type="button"
           onClick={() => navigate(`/clients/billing/invoices?filter=${key}`)}
-          className="pro-stat-card"
+          className="pro-stat-card stat-box"
           style={{ width: '100%', textAlign: 'left', font: 'inherit', fontFamily: 'inherit' }}
           title={`Open ${label.toLowerCase()} invoices`}
         >
+          {/* The card's name first, beside its icon; then the figure and the detail. */}
           <div className="pro-stat-top">
-            <div className="pro-stat-icon" style={{ background: color + '14', color }}>
-              <Icon size={20} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <div className="pro-stat-icon stat-box-icon">
+                <Icon size={20} />
+              </div>
+              <span className="pro-stat-name">{label}</span>
             </div>
             <ChevronRight size={16} className="pro-stat-arrow" aria-hidden="true" />
           </div>
           <div className="pro-stat-value" style={key === 'overdue' && value > 0 ? { color } : undefined}>
             {money(value)}
           </div>
-          <div className="pro-stat-label">{label} · {sub}</div>
+          <div className="pro-stat-label">{sub}</div>
         </button>
       ))}
     </section>

@@ -30,7 +30,7 @@ export default function PmOverview({ project, onOpen }) {
     const broken = sched.edges.filter((e) => e.violated).length;
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             <StatBand items={[
                 { label: 'Complete', value: `${Number(total.progress).toFixed(2)}%`, note: `${total.done} of ${total.leaves} work items done` },
                 { label: 'Overdue', value: total.overdue, tone: total.overdue ? 'down' : undefined, note: 'work items past their finish' },

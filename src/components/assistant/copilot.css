@@ -198,6 +198,14 @@ html.cp-resizing iframe { pointer-events: none; }
 
 /* Ask · Agents · Connectors · Neurals switch, in the page head. */
 .ask-switch { padding: 2px; border-radius: 8px; background: var(--card-2); }
+/* AI's Ask / Agents / Connectors / Neurals: the chosen one in the light-blue
+   tint every other page's tabs use (module tabs, kit Seg), not the navy fill. */
+.ask-switch button[aria-selected="true"] {
+  background: var(--edge-soft, #DBECF6) !important;
+  color: var(--edge-soft-text, #14293E);
+  border-color: transparent !important;
+}
+.ask-switch button[aria-selected="true"]:hover { background: var(--edge-soft-hover, var(--edge-soft, #DBECF6)) !important; }
 
 /* Empty state: the greeting, the composer, a row of starters. */
 .ask-hero { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 28px 22px 12vh; }

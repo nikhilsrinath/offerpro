@@ -573,7 +573,8 @@ export default function CalendarPage() {
             {/* toolbar */}
             <div className="cal-bar" style={{
                 display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: 10, marginBottom: 12,
-                background: t.card, border: '1px solid ' + t.line, borderRadius: 12, position: 'sticky', top: 0, zIndex: 20,
+                // Scrolls with the page; nothing is pinned over the calendar.
+                background: t.card, border: '1px solid ' + t.line, borderRadius: 12,
             }}>
                 <Btn onClick={() => go({ date: localDay() })} disabled={isNow && cursor === today} title="Go to today (T)">Today</Btn>
                 <div style={{ display: 'flex', gap: 2 }}>
@@ -596,7 +597,7 @@ export default function CalendarPage() {
                 <div className={'cal-wrap' + (filtersOpen ? ' filters-open' : '')}>
                     <aside className="cal-side" aria-label="Calendar options" style={{
                         background: t.card, border: '1px solid ' + t.line, borderRadius: 12, padding: 12, alignSelf: 'start',
-                        display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 66,
+                        display: 'flex', flexDirection: 'column', gap: 16,
                     }}>
                         <MiniMonth cursor={cursor} today={today} marked={marked} onPick={(d) => go({ date: d })} />
                         <div style={{ height: 1, background: t.lineSoft }} />

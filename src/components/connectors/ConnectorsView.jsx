@@ -131,16 +131,24 @@ export default function ConnectorsView() {
     const connected = { apollo: !!apollo.status };
     const [openId, setOpenId] = useState(null);
     const open = CONNECTORS.find((c) => c.id === openId) || null;
+    // The category shown: 'all', or one group's id.
+    const [cat, setCat] = useState('all');
+    const groups = GROUPS.map((g) => ({ ...g, items: CONNECTORS.filter((c) => c.group === g.id) })).filter((g) => g.items.length);
     return (
         <div className="ask-pane eo-scroll">
             <div className="ask-pane-inner">
-                <div className="ask-pane-head"><h2>Connectors</h2><span className="ag-badge">{CONNECTORS.length}</span></div>
-                {GROUPS.map((g) => {
-                    const items = CONNECTORS.filter((c) => c.group === g.id);
-                    if (!items.length) return null;
+                <div className="cn-cats" role="group" aria-label="Connector categories">
+                    {[{ id: 'all', label: 'All', items: CONNECTORS }, ...groups].map((g) => (
+                        <button key={g.id} type="button" className="cn-cat" aria-pressed={cat === g.id} onClick={() => setCat(g.id)}>
+                            {g.label} <span className="cn-cat-n">{g.items.length}</span>
+                        </button>
+                    ))}
+                </div>
+                {groups.filter((g) => cat === 'all' || g.id === cat).map((g) => {
+                    const items = g.items;
                     return (
                         <section key={g.id} className="cn-group" aria-label={g.label}>
-                            <h3 className="cn-group-title">{g.label}</h3>
+                            <h3 className="cn-group-title">{g.label} <span className="cn-group-count">{items.length}</span></h3>
                             <div className="cn-grid">
                                 {items.map((c) => <ConnectorCard key={c.id} c={c} connected={!!connected[c.id]} onOpen={() => setOpenId(c.id)} />)}
                             </div>

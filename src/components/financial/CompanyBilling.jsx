@@ -21,7 +21,7 @@ export default function CompanyBilling({ kind }) {
     const choose = (id) => navigate(KINDS.find((k) => k.id === id).to, { replace: true });
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             <Row gap={12} wrap>
                 <Seg label="Kind of document" value={kind} onChange={choose}
                     options={KINDS.map((k) => ({ id: k.id, label: k.label }))} />

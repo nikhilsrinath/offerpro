@@ -37,6 +37,7 @@ export function useStickyHead(on = true) {
             if (!CLIPS_ONLY.test(cs.overflowX) || !CLIPS_ONLY.test(cs.overflowY)) { clear = false; break; }
         }
         const boxOverflow = box.style.overflowX;
+        const boxOverflowY = box.style.overflowY;
         const headEl = headRef.current;
         let mode = null;
 
@@ -49,7 +50,11 @@ export function useStickyHead(on = true) {
             if (next !== mode) {
                 mode = next;
                 if (mode === 'sticky') {
+                    // Clipped both ways: `clip` is not a scroll box, so the header still
+                    // sticks to the page, and a rounded box keeps its rounded corners
+                    // (clipping one axis only leaves the header's corners square).
                     box.style.overflowX = 'clip';
+                    box.style.overflowY = 'clip';
                     head.style.position = 'sticky';
                     // Sticky holds below the scroller's own padding; pull it up
                     // over that gutter so no row shows above the header.
@@ -57,6 +62,7 @@ export function useStickyHead(on = true) {
                     head.style.transform = '';
                 } else {
                     box.style.overflowX = boxOverflow || 'auto';
+                    box.style.overflowY = boxOverflowY;
                     head.style.position = 'relative';
                     head.style.top = '';
                 }
@@ -86,6 +92,7 @@ export function useStickyHead(on = true) {
             ro?.disconnect();
             placeRef.current = () => {};
             box.style.overflowX = boxOverflow;
+            box.style.overflowY = boxOverflowY;
             if (headEl) { headEl.style.position = ''; headEl.style.top = ''; headEl.style.transform = ''; headEl.style.zIndex = ''; }
         };
     }, [on]);

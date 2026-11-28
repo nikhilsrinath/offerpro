@@ -47,6 +47,10 @@ import TeamHierarchy from './components/TeamHierarchy';
 import TasksPage from './components/tasks/TasksPage';
 import ProjectsPage from './components/projects/ProjectsPage';
 import { NewProjectPanel } from './components/projects/ProjectForm';
+import PageGuide from './components/guide/PageGuide';
+import HelpPage from './components/help/HelpPage';
+import { helpTabs } from './components/help/helpTabs';
+import { aiTabs } from './components/today/aiTabs';
 import ProjectDetail, { projectSections, activeSection, projectRail } from './components/projects/ProjectDetail';
 import ProjectDashboardPage from './components/projects/ProjectDashboards';
 import { projectDashboardGroup } from './components/projects/projectDashboardNav';
@@ -109,6 +113,8 @@ const MODULE_FILTER = {
   // One page each, so the shell shows no tabs for them.
   today: ['today'],
   ai: ['ai'],
+  // Help & Support, at the foot of the rail.
+  help: ['help'],
   // Each person's own calendar, to-dos and notes (0112).
   workspace: ['calendar', 'my-tasks', 'notes'],
   // Ex-employees and leave are tabs of Employees and Attendance, not rail items.
@@ -199,6 +205,8 @@ function foldBilling(items, activePage) {
 // The rail's top arrow has two destinations and no others: inside a project
 // (its pages, and the forms opened from one) it leads to the project list,
 // everywhere else to the Dashboard's Overview, the workspace's first page.
+const AI_PARTS = { ask: 'Ask', agents: 'Agents', connectors: 'Connectors', neurals: 'Neurals' };
+
 const PROJECTS_BACK = { to: '/projects', label: 'Back to projects' };
 const HOME_BACK = { to: HOME, label: 'Back to dashboard' };
 
@@ -229,6 +237,7 @@ const MODULE_META = {
   vendors:   { id: 'vendors', label: 'Vendors' },
   projects:  { id: 'projects', label: 'Projects' },
   overall:   { id: 'overall', label: 'Dashboard' },
+  help:      { id: 'help', label: 'Help & Support' },
 };
 
 const NAV_ITEMS = [
@@ -243,7 +252,7 @@ const NAV_ITEMS = [
   { id: 'dashboard/usage', label: 'Usage', icon: Gauge },
   { section: 'WORKSPACE' },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
-  { id: 'my-tasks', label: 'My Tasks', icon: ListTodo },
+  { id: 'my-tasks', label: 'Tasks', icon: ListTodo },
   { id: 'notes', label: 'Notes', icon: StickyNote },
   { section: 'TEAM' },
   { id: 'employees', label: 'Employees', icon: Users },
@@ -281,71 +290,63 @@ const NAV_ITEMS = [
 ];
 
 const PAGE_META = {
-  today: { title: 'Today', subtitle: 'What needs you today, worked out from your live records' },
-  ai: { title: 'AI', subtitle: 'Ask about your company, or tell EdgeAI what to do' },
-  calendar: { title: 'Calendar', subtitle: 'Your events and every date in the company, in one place' },
-  'my-tasks': { title: 'My Tasks', subtitle: 'Your own to-dos, and the work assigned to you' },
-  notes: { title: 'Notes', subtitle: 'Ideas, checklists and reminders, visible only to you' },
-  'dashboard/overview': { title: 'Overview', subtitle: 'Your company at a glance: the widgets you choose and the activity behind them' },
-  dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for one period. Click anything for the analysis behind it' },
-  'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Credit, debit, and who owes whom' },
-  'dashboard/sales': { title: 'Sales & Marketing Dashboard', subtitle: 'Pipeline, recurring revenue, quotations, customers, markets and acquisition spend' },
-  'dashboard/team': { title: 'Team Dashboard', subtitle: 'Headcount, attendance, leave and who is carrying the work' },
-  'dashboard/projects': { title: 'Projects Dashboard', subtitle: 'What is being delivered, what is late, and whether it pays' },
-  'dashboard/documents': { title: 'Documents Dashboard', subtitle: 'Everything issued, every reply, and the library EdgeAI reads' },
-  'dashboard/usage': { title: 'Usage Dashboard', subtitle: 'AI messages and plan limits: how much you have used and what is left' },
-  profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
-  'offer-letters': { title: 'Offer Letters', subtitle: 'One offer at a time, or a whole batch from a CSV' },
-  certificates: { title: 'Certificates', subtitle: 'Issue one certificate, or a whole batch from a CSV' },
-  templates: { title: 'Templates', subtitle: 'Agreements drafted on your letterhead. Pick one to start' },
-  'templates/nda': { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
-  'templates/mou': { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
-  'templates/partnership': { title: 'Partnership Agreement', subtitle: 'Contributions, profit sharing and terms between partners' },
-  'templates/custom': { title: 'Custom Template', subtitle: 'Your own title and clauses on the company letterhead' },
-  'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
-  'general-ledger': { title: 'General Ledger', subtitle: 'Every credit and debit across the company and all its projects: vendor bills, money in, payments and costs' },
-  invoices: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
-  quotations: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
-  proforma: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
-  recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
-  // `note`: shown under the title, where a tabbed module page has no subtitle.
-  'vendor-directory': {
-    title: 'Vendor Directory',
-    subtitle: 'Vendor master data. Store legal name, vendor ID, tax details, payment terms, currency, bank details, contacts, and active/inactive status.',
-    note: 'Vendor master data. Store legal name, vendor ID, tax details, payment terms, currency, bank details, contacts, and active/inactive status.',
-  },
-  'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST. A preparation aid, not a filing tool' },
+  today: { title: 'Today', subtitle: 'What needs your attention today' },
+  help: { title: 'Help & Support', subtitle: 'How Opstead works, answers to common questions, and how to reach us' },
+  ai: { title: 'AI', subtitle: 'Ask about your company, or tell OpsteadAI what to do' },
+  calendar: { title: 'Calendar', subtitle: 'Your events and company dates in one place' },
+  'my-tasks': { title: 'Tasks', subtitle: 'Your to-dos and the work assigned to you' },
+  notes: { title: 'Notes', subtitle: 'Private ideas, checklists and reminders' },
+  'dashboard/overview': { title: 'Overview', subtitle: 'Your company at a glance' },
+  dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for any period' },
+  'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Money in, money out, and who owes whom' },
+  'dashboard/sales': { title: 'Sales & Marketing Dashboard', subtitle: 'Pipeline, revenue, customers and markets' },
+  'dashboard/team': { title: 'Team Dashboard', subtitle: 'Headcount, attendance, leave and workload' },
+  'dashboard/projects': { title: 'Projects Dashboard', subtitle: 'Delivery, delays and project profitability' },
+  'dashboard/documents': { title: 'Documents Dashboard', subtitle: 'Documents issued, replies and the library' },
+  'dashboard/usage': { title: 'Usage Dashboard', subtitle: 'AI usage and plan limits' },
+  profile: { title: 'Company Profile', subtitle: 'The details printed on every document you issue' },
+  'offer-letters': { title: 'Offer Letters', subtitle: 'Send one offer, or a batch from a CSV' },
+  certificates: { title: 'Certificates', subtitle: 'Issue one certificate, or a batch from a CSV' },
+  templates: { title: 'Templates', subtitle: 'Agreements on your letterhead. Pick one to start' },
+  'templates/nda': { title: 'Non-Disclosure Agreements', subtitle: 'Confidentiality agreements' },
+  'templates/mou': { title: 'Memorandum of Understanding', subtitle: 'Collaboration and partnership frameworks' },
+  'templates/partnership': { title: 'Partnership Agreement', subtitle: 'Contributions, profit sharing and terms' },
+  'templates/custom': { title: 'Custom Template', subtitle: 'Your own clauses on the company letterhead' },
+  'finance-status': { title: 'Finance Status', subtitle: 'Every financial document through its lifecycle' },
+  'general-ledger': { title: 'General Ledger', subtitle: 'Every credit and debit across the company' },
+  invoices: { title: 'Billing', subtitle: 'Create and track quotations, proformas and invoices' },
+  quotations: { title: 'Billing', subtitle: 'Create and track quotations, proformas and invoices' },
+  proforma: { title: 'Billing', subtitle: 'Create and track quotations, proformas and invoices' },
+  recurring: { title: 'Recurring Invoices', subtitle: 'Invoices that repeat on a schedule' },
+  'vendor-directory': { title: 'Vendor Directory', subtitle: 'Vendor profiles, tax details, bank details and terms' },
+  'tax-summary': { title: 'Tax Summary', subtitle: 'GST collected against GST paid' },
   'profit-loss': { title: 'Profit & Loss', subtitle: 'Income, expenses and net profit for any period' },
-  'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
-  'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for your client' },
-  'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
-  crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
-  'client-directory': {
-    title: 'Client Directory',
-    subtitle: 'Maintain customer profiles, billing details, tax IDs, credit limits, payment terms, and contacts.',
-    note: 'Maintain customer profiles, billing details, tax IDs, credit limits, payment terms, and contacts.',
-  },
-  'client-general-ledger': { title: 'Client General Ledger', subtitle: 'Invoices to clients, the money received from them and what is still outstanding' },
-  'vendor-general-ledger': { title: 'Vendor General Ledger', subtitle: 'Vendor invoices, payments to vendors and what is still payable' },
-  'products-directory': { title: 'Business Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
-  revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
-  records: { title: 'Records', subtitle: 'Manage and download issued documents' },
-  'document-library': { title: 'Document Library', subtitle: 'General documents, process assets and lessons learned. EdgeAI reads them so it can answer from them' },
-  employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
-  'ex-employees': { title: 'Ex-Employees', subtitle: 'Archive of employees who have left the organization' },
+  'new-invoice': { title: 'New Invoice', subtitle: 'Create an invoice for a client' },
+  'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for a client' },
+  'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create a proforma and track the advance' },
+  crm: { title: 'CRM', subtitle: 'Leads and deals through your sales pipeline' },
+  'client-directory': { title: 'Client Directory', subtitle: 'Client profiles, tax IDs, payment terms and contacts' },
+  'client-general-ledger': { title: 'Client General Ledger', subtitle: 'Invoices, receipts and outstanding amounts by client' },
+  'vendor-general-ledger': { title: 'Vendor General Ledger', subtitle: 'Vendor bills, payments and amounts payable' },
+  'products-directory': { title: 'Business Directory', subtitle: 'Your products and services, and what each has sold' },
+  revenue: { title: 'Billing & Revenue', subtitle: 'Revenue, expenses and profitability' },
+  records: { title: 'Records', subtitle: 'Find and download issued documents' },
+  'document-library': { title: 'Document Library', subtitle: 'Company documents OpsteadAI can read and answer from' },
+  employees: { title: 'Employee Registry', subtitle: 'Your team and their onboarding' },
+  'ex-employees': { title: 'Ex-Employees', subtitle: 'People who have left the organisation' },
   me: { title: 'My Portal', subtitle: 'Your attendance, leave and announcements' },
-  attendance: { title: 'Attendance', subtitle: 'Daily sheet, monthly calendar, export and leave' },
-  leave: { title: 'Leave', subtitle: 'Approve requests, track balances and set quotas' },
-  announcements: { title: 'Announcements', subtitle: 'Broadcast to the whole team or one department' },
-  'company-hierarchy': { title: 'Hierarchy', subtitle: 'Visual org chart: drag nodes and connect reporting lines' },
-  'recruitment-tracker': { title: 'Recruitment Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
-  tasks: { title: 'Tasks', subtitle: 'Assign and track work by project, or General' },
-  projects: { title: 'Projects', subtitle: 'What the company is delivering, for whom, and whether it pays' },
+  attendance: { title: 'Attendance', subtitle: 'Daily sheet, monthly calendar and exports' },
+  leave: { title: 'Leave', subtitle: 'Approve requests, track balances, set quotas' },
+  announcements: { title: 'Announcements', subtitle: 'Messages to the whole team or one department' },
+  'company-hierarchy': { title: 'Hierarchy', subtitle: 'Org chart and reporting lines' },
+  'recruitment-tracker': { title: 'Recruitment Tracker', subtitle: 'Acceptance status of every offer letter sent' },
+  tasks: { title: 'Tasks', subtitle: 'Assign and track work by project' },
+  projects: { title: 'Projects', subtitle: 'What you are delivering, for whom, and if it pays' },
   'new-project': { title: 'New project', subtitle: 'Client or internal work, its team, budget and plan' },
-  'project-detail': { title: 'Project', subtitle: 'Credit, debit, people, plan and work' },
-  'kanban-chart': { title: 'Kanban Chart', subtitle: 'Every project by status: what has started, what is due and what has ended' },
-  portfolio: { title: 'Portfolio', subtitle: 'Every project: health, margin and team load' },
-  timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project: submitted, approved, billed' },
+  'project-detail': { title: 'Project', subtitle: 'Money, people, plan and work for this project' },
+  'kanban-chart': { title: 'Kanban Chart', subtitle: 'Every project grouped by status' },
+  portfolio: { title: 'Portfolio', subtitle: 'Health, margin and team load across projects' },
+  timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project' },
 };
 
 /* One page, several ways of working: the single-document editor, its batch
@@ -520,7 +521,7 @@ function AppContent() {
     return (
       <div className="app-loading">
         <div style={{ textAlign: 'center' }}>
-          <div className="app-loading-spinner" />
+          <img className="app-loading-mark" src="/opstead-mark-192.png" alt="" width="44" height="44" />
           <span className="app-loading-text">Loading Opstead...</span>
         </div>
       </div>
@@ -544,7 +545,7 @@ function AppContent() {
     return (
       <div className="app-loading">
         <div style={{ textAlign: 'center' }}>
-          <div className="app-loading-spinner" />
+          <img className="app-loading-mark" src="/opstead-mark-192.png" alt="" width="44" height="44" />
           <span className="app-loading-text">Loading Opstead...</span>
         </div>
       </div>
@@ -581,9 +582,13 @@ function AppContent() {
     moduleItems = moduleItems.map((i) => (i === rootItem ? { ...i, active: !onSibling } : i));
   }
   if (activeModule === 'clients') moduleItems = foldBilling(moduleItems, activePage);
+  // Help & Support's four parts are its tabs, in the page heading like every module's.
+  if (activeModule === 'help') moduleItems = helpTabs(location.pathname);
+  // The AI page's parts (Ask · Agents · Connectors · Neurals) likewise.
+  if (activeModule === 'ai') moduleItems = aiTabs(location.pathname);
   let moduleMeta = onProfile ? { label: 'Settings' } : MODULE_META[activeModule];
   if (openProject) {
-    const sections = projectSections();
+    const sections = projectSections(openProject);
     const current = activeSection(location.pathname, sections);
     moduleMeta = { id: 'projects', label: openProject.name || openProject.code || 'Project' };
     // Dashboard and Finance each fold their pages under one item.
@@ -597,6 +602,9 @@ function AppContent() {
   const onBillingForm = /^\/clients\/billing\/[^/]+\/(new|[^/]+\/edit)$/.test(location.pathname);
   const formProjectId = onBillingForm ? new URLSearchParams(location.search).get('project') : null;
   const formProject = formProjectId && allProjects.find((p) => p.id === formProjectId);
+  // The AI page's own switch (Ask · Agents · Connectors · Neurals) is its
+  // path (/ai/agents/…), so the heading in the page names the part that is open.
+  const aiPart = activePage === 'ai' ? AI_PARTS[location.pathname.split('/')[2]] : null;
   const back = openProject || formProject || activePage === 'new-project' ? PROJECTS_BACK : HOME_BACK;
   const flush = FLUSH_PAGES.has(activePage) || isTabbed(location.pathname)
     || /^\/clients\/billing\/recurring\/(new|[^/]+\/edit)$/.test(location.pathname) || !!openProject;
@@ -622,15 +630,21 @@ function AppContent() {
             theme={theme} user={user}
             module={moduleMeta}
             items={moduleItems}
-            title={meta.title} subtitle={meta.subtitle} note={meta.note}
+            // Inside a project the top bar names the project.
+            title={openProject ? moduleMeta.label : meta.title}
+            subtitle={openProject ? undefined : meta.subtitle} note={openProject ? undefined : meta.note}
+            heading={aiPart || undefined}
             flush={flush}
             noRail={onProfile}
             workspace={!!openProject}
+            railLabel={openProject ? 'Project' : undefined}
             // Every hub module keeps the hub's rail (this module lit) and puts
             // its own pages in tabs at the top of the page. A project is its
             // own workspace with its sections in the rail.
             topNav={!!activeModule && !openProject && !onProfile}
             back={back}
+            // The page's tip for people new to Opstead (a project's are in ProjectDetail).
+            guide={openProject ? null : <PageGuide id={activePage === 'ai' ? `ai/${location.pathname.split('/')[2] || 'ask'}` : activePage} />}
             onToggleTheme={toggleTheme} onLogout={askLogout}
           >
           <Routes>
@@ -646,6 +660,7 @@ function AppContent() {
             {/* EdgeBrain is now Neurals, a section of the AI page. */}
             <Route path="edgebrain" element={<Navigate to="/ai/neurals" replace />} />
             <Route path="today" element={<TodayPage />} />
+            <Route path="help/*" element={<HelpPage />} />
             <Route path="ai/*" element={<AskPage theme={theme} />} />
             {/* Workspace: private to each person (0112). */}
             <Route path="workspace" element={<Navigate to="/workspace/calendar" replace />} />

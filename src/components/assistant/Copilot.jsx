@@ -153,12 +153,12 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
     /* ── dock ─────────────────────────────────────────────────────────── */
     if (!full) {
         return (
-            <section className="cp cp-dock eo-surface" data-theme={theme} aria-label="EdgeAI copilot"
+            <section className="cp cp-dock eo-surface" data-theme={theme} aria-label="OpsteadAI copilot"
                 style={dock.enabled ? { width: dock.width } : undefined}>
                 {dock.enabled && <DockResizer width={dock.width} onCommit={dock.commit} />}
                 <header className="cp-head">
                     <span className={`cp-orb${a.streaming ? ' is-live' : ''}`} aria-hidden="true" />
-                    <span className="cp-title">EdgeAI</span>
+                    <span className="cp-title">OpsteadAI</span>
                     <div className="cp-tabs" role="tablist" aria-label="Copilot view">
                         <button type="button" role="tab" aria-selected={!showHistory} onClick={() => a.setView('chat')}>Chat</button>
                         <button type="button" role="tab" aria-selected={showHistory} onClick={() => a.setView('history')}>
@@ -196,8 +196,10 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
     if (page) {
         const listed = sideOpen && !pane;
         return (
-            <div className="cp cp-full cp-page eo-surface" data-theme={theme} role="region" aria-label="Ask EdgeAI">
-                <header className="cp-head">
+            <div className="cp cp-full cp-page eo-surface" data-theme={theme} role="region" aria-label="Ask OpsteadAI">
+                {/* Only when it holds something: the page's parts are the heading's tabs now,
+                    so on Agents, Connectors and Neurals this row would be empty. */}
+                {(switcher || (!sideOpen && !pane)) && <header className="cp-head">
                     {!sideOpen && !pane && (
                         <button type="button" className="cp-icon" onClick={() => setSideOpen(true)} aria-label="Show chat history" title="History">
                             <PanelLeft size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -211,7 +213,7 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
                             </button>
                         </div>
                     )}
-                </header>
+                </header>}
                 <div className="cp-page-body">
                     {listed && phone && <div className="cp-scrim" onClick={() => setSideOpen(false)} />}
                     {listed && (
@@ -236,13 +238,13 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
     /* ── full screen ──────────────────────────────────────────────────── */
     return (
         <div className={`cp cp-full${page ? ' cp-page' : ''} eo-surface`} data-theme={theme}
-            role={page ? 'region' : 'dialog'} aria-modal={page ? undefined : 'true'} aria-label={page ? 'Ask EdgeAI' : 'EdgeAI copilot'}>
+            role={page ? 'region' : 'dialog'} aria-modal={page ? undefined : 'true'} aria-label={page ? 'Ask OpsteadAI' : 'OpsteadAI copilot'}>
             {sideOpen && phone && !pane && <div className="cp-scrim" onClick={() => setSideOpen(false)} />}
             {sideOpen && !pane && (
                 <aside className="cp-side" aria-label="Chat history">
                     <div className="cp-side-head">
                         <span className={`cp-orb${a.streaming ? ' is-live' : ''}`} aria-hidden="true" />
-                        <span className="cp-title">EdgeAI</span>
+                        <span className="cp-title">OpsteadAI</span>
                         <button type="button" className="cp-icon" style={{ marginLeft: 'auto' }}
                             onClick={() => setSideOpen(false)} aria-label="Hide chat history" title="Hide history">
                             {phone ? <X size={16} aria-hidden="true" /> : <PanelLeft size={16} strokeWidth={1.8} aria-hidden="true" />}
@@ -479,7 +481,7 @@ function Welcome({ a, compact }) {
         <div className="cp-welcome eo-scroll">
             <div className="cp-welcome-inner">
                 <div className="cp-big-orb" aria-hidden="true" />
-                <h2>Ask EdgeAI</h2>
+                <h2>Ask OpsteadAI</h2>
                 <div className="cp-prompts">
                     {(compact ? promptsFor().slice(0, 3) : promptsFor()).map((p) => (
                         <button key={p} type="button" onClick={() => a.send(p)} disabled={a.streaming}>
@@ -555,7 +557,7 @@ function Thread({ a, onOpen }) {
                                 ? <Markdown text={m.content} t={MD_TOKENS} />
                                 : (
                                     <span className="cp-typing-row">
-                                        <span className="cp-typing" role="status" aria-label="EdgeAI is replying"><span /><span /><span /></span>
+                                        <span className="cp-typing" role="status" aria-label="OpsteadAI is replying"><span /><span /><span /></span>
                                         {working && replying && <span className="cp-working">{working}</span>}
                                     </span>
                                 )}
@@ -766,7 +768,7 @@ function Composer({ a, onCall, autoFocus, placeholder }) {
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
                 placeholder={listening ? 'Listening…' : (placeholder || 'Ask anything about your company')}
-                aria-label="Message EdgeAI"
+                aria-label="Message OpsteadAI"
             />
             <button
                 type="button" className="cp-mic" onClick={toggleMic} disabled={!supported}

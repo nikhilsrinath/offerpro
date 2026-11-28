@@ -101,16 +101,17 @@ const warningFor = (name, value) => {
   return rule[0].test(String(value).trim()) ? '' : rule[1];
 };
 
+// The bank and UPI details (once their own Payments tab) are a section of the
+// Company tab: invoices, proformas and quotations print them.
 const TABS = [
-  { id: 'company', label: 'Company', steps: ['company', 'contact', 'signatory'] },
+  { id: 'company', label: 'Company', steps: ['company', 'contact', 'signatory', 'banking'] },
   { id: 'branding', label: 'Corporate Identity', steps: ['branding', 'stamp'] },
-  { id: 'payments', label: 'Payments', steps: ['banking'] },
   { id: 'email', label: 'Email', steps: ['email'] },
   { id: 'workspace', label: 'Account', steps: [] },
 ];
 const TAB_OF = {
   company: 'company', contact: 'company', signatory: 'company',
-  branding: 'branding', stamp: 'branding', banking: 'payments', payments: 'payments',
+  branding: 'branding', stamp: 'branding', banking: 'company', payments: 'company',
   email: 'email', access: 'workspace', plan: 'workspace', account: 'workspace', workspace: 'workspace',
 };
 
@@ -238,19 +239,22 @@ export default function CompanyProfile() {
     { id: 'signatory', label: 'Signatory', done: !!(form.owner_full_name && form.document_designation), todo: 'Name who signs your documents' },
     { id: 'branding', label: 'Logo & signature', done: !!(form.logo_url && form.signature_url), todo: form.logo_url ? 'Upload a signature' : 'Upload your logo' },
     { id: 'stamp', label: 'Company stamp', done: form.stamp_type === 'generated' ? !!form.stamp_city : !!form.stamp_url, todo: 'Finish your company stamp' },
-    { id: 'banking', label: 'Payments', done: !!(form.upi_id || (form.bank_name && form.bank_account_number && form.bank_ifsc)), todo: 'Add UPI or bank details' },
+    { id: 'banking', label: 'Bank & UPI', done: !!(form.upi_id || (form.bank_name && form.bank_account_number && form.bank_ifsc)), todo: 'Add UPI or bank details' },
     { id: 'email', label: 'Email sending', done: emailStatus.configured, todo: 'Connect Gmail to send documents' },
   ], [form, emailStatus.configured]);
   const doneCount = steps.filter((s) => s.done).length;
   const nextStep = steps.find((s) => !s.done);
 
-  const jumpTo = (id, focusField) => {
+  const jumpTo = (id, given) => {
+    // Bank & UPI sits under the other Company sections: its first field, not the tab's.
+    const focusField = given || (id === 'banking' || id === 'payments' ? 'upi_id' : undefined);
     setActiveSection(TAB_OF[id] || id);
     setTimeout(() => {
       const target = focusField
         ? document.getElementById(`cp-${focusField}`)
         : document.querySelector('#cp-tabpanel input:not([type=hidden]):not([type=file]), #cp-tabpanel textarea, #cp-tabpanel button.cp-drop');
       if (target) target.focus({ preventScroll: true });
+      if (target && !given && focusField) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }, 60);
   };
 
@@ -475,7 +479,7 @@ export default function CompanyProfile() {
 
   return (
     <Page>
-      <div style={{ display: 'grid', gap: 14, maxWidth: 1600, margin: '0 auto', minWidth: 0 }}>
+      <div style={{ display: 'grid', gap: 12, maxWidth: 1600, margin: '0 auto', minWidth: 0 }}>
 
         {/* progress strip */}
         <section style={{
@@ -535,10 +539,10 @@ export default function CompanyProfile() {
           })}
         </nav>
 
-        <div id="cp-tabpanel" role="tabpanel" style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+        <div id="cp-tabpanel" role="tabpanel" style={{ display: 'grid', gap: 12, minWidth: 0 }}>
 
           {tab === 'company' && (
-            <PanelGrid min={300}>
+            <PanelGrid min={260} even cols={4}>
               <Panel t={t} title="Company basics" done={stepDone.company}>
                 <Fields>
                   <FormField t={t} label="Company name" required htmlFor="cp-company_name" wide>
@@ -585,7 +589,7 @@ export default function CompanyProfile() {
 
               <Panel t={t} title="Contact & tax" done={stepDone.contact}>
                 <Fields>
-                  <FormField t={t} label="Contact email" required htmlFor="cp-company_email" warn={warn('company_email')}>
+                  <FormField t={t} label="Contact email" required htmlFor="cp-company_email" warn={warn('company_email')} wide>
                     <TextInput t={t} {...bind('company_email')} type="email" inputMode="email" autoComplete="email" />
                   </FormField>
                   <FormField t={t} label="Phone" required htmlFor="cp-company_phone" warn={warn('company_phone')} wide>
@@ -616,11 +620,35 @@ export default function CompanyProfile() {
                   </FormField>
                 </Fields>
               </Panel>
+
+              {/* Printed on invoices, proformas and quotations. */}
+              <Panel t={t} title="Bank & UPI" wide id="cp-section-banking"
+                done={!!(form.upi_id || (form.bank_name && form.bank_account_number && form.bank_ifsc))}>
+                <Fields>
+                  <FormField t={t} label="UPI ID" htmlFor="cp-upi_id" warn={warn('upi_id')}>
+                    <TextInput t={t} {...bind('upi_id')} spellCheck={false} autoCapitalize="none" mono />
+                  </FormField>
+                  <FormField t={t} label="Bank name" htmlFor="cp-bank_name">
+                    <TextInput t={t} {...bind('bank_name')} />
+                  </FormField>
+                  <FormField t={t} label="Account type" htmlFor="cp-bank_account_type">
+                    <div id="cp-bank_account_type">
+                      <Seg value={form.bank_account_type} onChange={(v) => setField('bank_account_type', v)} options={['Current', 'Savings']} />
+                    </div>
+                  </FormField>
+                  <FormField t={t} label="Account number" htmlFor="cp-bank_account_number" warn={warn('bank_account_number')}>
+                    <TextInput t={t} {...bind('bank_account_number')} inputMode="numeric" spellCheck={false} mono />
+                  </FormField>
+                  <FormField t={t} label="IFSC" htmlFor="cp-bank_ifsc" warn={warn('bank_ifsc')}>
+                    <TextInput t={t} {...bind('bank_ifsc')} maxLength={11} spellCheck={false} mono />
+                  </FormField>
+                </Fields>
+              </Panel>
             </PanelGrid>
           )}
 
           {tab === 'branding' && (
-            <PanelGrid min={280}>
+            <PanelGrid min={280} even cols={3}>
               <Panel t={t} title="Company logo" done={!!form.logo_url}>
                 <Uploader t={t} field="logo_url" label="Logo"
                   url={form.logo_url} busy={uploading.logo_url} height={72}
@@ -659,38 +687,8 @@ export default function CompanyProfile() {
             </PanelGrid>
           )}
 
-          {tab === 'payments' && (
-            <PanelGrid min={320}>
-              <Panel t={t} title="UPI" done={!!form.upi_id}>
-                <Fields>
-                  <FormField t={t} label="UPI ID" htmlFor="cp-upi_id" warn={warn('upi_id')} wide>
-                    <TextInput t={t} {...bind('upi_id')} spellCheck={false} autoCapitalize="none" mono />
-                  </FormField>
-                </Fields>
-              </Panel>
-              <Panel t={t} title="Bank account" done={!!(form.bank_name && form.bank_account_number && form.bank_ifsc)}>
-                <Fields>
-                  <FormField t={t} label="Bank name" htmlFor="cp-bank_name">
-                    <TextInput t={t} {...bind('bank_name')} />
-                  </FormField>
-                  <FormField t={t} label="Account type" htmlFor="cp-bank_account_type">
-                    <div id="cp-bank_account_type">
-                      <Seg value={form.bank_account_type} onChange={(v) => setField('bank_account_type', v)} options={['Current', 'Savings']} />
-                    </div>
-                  </FormField>
-                  <FormField t={t} label="Account number" htmlFor="cp-bank_account_number" warn={warn('bank_account_number')}>
-                    <TextInput t={t} {...bind('bank_account_number')} inputMode="numeric" spellCheck={false} mono />
-                  </FormField>
-                  <FormField t={t} label="IFSC" htmlFor="cp-bank_ifsc" warn={warn('bank_ifsc')}>
-                    <TextInput t={t} {...bind('bank_ifsc')} maxLength={11} spellCheck={false} mono />
-                  </FormField>
-                </Fields>
-              </Panel>
-            </PanelGrid>
-          )}
-
           {tab === 'email' && (
-            <PanelGrid min={340}>
+            <PanelGrid min={340} even cols={2}>
               <Panel t={t} title="Email sending" done={stepDone.email}
                 status={!emailStatus.loading && (
                   <StatusLine t={t} ok={emailStatus.configured}>
@@ -742,7 +740,7 @@ export default function CompanyProfile() {
           )}
 
           {tab === 'workspace' && (
-            <PanelGrid min={320}>
+            <PanelGrid min={320} even cols={3}>
               <Panel t={t} title="Team access">
                 <ActionRow t={t} title="Roles & permissions"
                   action={<Btn onClick={() => navigate('/company/employees')}>Open Employees <ArrowRight size={13} /></Btn>} />
@@ -860,17 +858,24 @@ export default function CompanyProfile() {
 
 /* ── pieces ──────────────────────────────────────────────────────────────── */
 
-function PanelGrid({ min = 300, children }) {
+/* `even`: the panels in a row are all as tall as the tallest of them.
+   `cols`: at most this many columns, sharing the whole width. Otherwise a wide
+   screen makes more columns than there are panels, and a full-width panel
+   (Bank & UPI) keeps the empty ones open as a gap on the right. A column is
+   never narrower than `min`; below that they wrap. */
+function PanelGrid({ min = 300, even = false, cols = 0, children }) {
+  const track = cols ? `max(${min}px, (100% - ${(cols - 1) * 14}px) / ${cols})` : `${min}px`;
   return (
-    <div style={{ display: 'grid', gap: 14, alignItems: 'start', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))` }}>
+    <div style={{ display: 'grid', gap: 12, alignItems: even ? 'stretch' : 'start', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${track}), 1fr))` }}>
       {children}
     </div>
   );
 }
 
-function Panel({ t, title, desc, done, status, children }) {
+/* `wide`: the panel takes a row of its own. */
+function Panel({ t, title, desc, done, status, wide, id, children }) {
   return (
-    <section style={{ border: '1px solid ' + t.line, borderRadius: 12, background: t.panel, minWidth: 0 }}>
+    <section id={id} style={{ border: '1px solid ' + t.line, borderRadius: 12, background: t.panel, minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
       <header style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap', padding: '14px 16px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em', color: t.text, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -933,7 +938,7 @@ function TextInput({ t, as, mono, style, ...props }) {
         height: Tag === 'textarea' ? undefined : 40,
         padding: Tag === 'textarea' ? '10px 12px' : '0 12px',
         background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 8,
-        color: t.text, fontFamily: MONO, fontSize: 14.5, outline: 'none',
+        color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
         letterSpacing: mono ? '0.04em' : undefined,
         resize: Tag === 'textarea' ? 'vertical' : undefined, lineHeight: 1.55,
         ...style,
@@ -947,7 +952,7 @@ function Select({ t, style, children, ...props }) {
     <select {...props} className="edge-input cp-input" style={{
       width: '100%', height: 40, padding: '0 10px', boxSizing: 'border-box',
       background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 8,
-      color: t.text, fontFamily: MONO, fontSize: 14.5, outline: 'none', ...style,
+      color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none', ...style,
     }}>
       {children}
     </select>
@@ -966,7 +971,7 @@ function PhoneInput({ t, value, onValue, onBlur, id, name }) {
         style={{
           width: 104, flexShrink: 0, height: 40, padding: '0 8px', boxSizing: 'border-box',
           background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 8,
-          color: t.text, fontFamily: MONO, fontSize: 14.5, outline: 'none',
+          color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
         }}
       >
         {DIAL_OPTIONS.map((o) => <option key={o.code} value={o.code}>{`${o.iso} +${o.code}`}</option>)}

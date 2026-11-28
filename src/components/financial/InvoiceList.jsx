@@ -996,7 +996,7 @@ function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, o
   return (
     <section
       aria-label="Needs your attention"
-      style={{ border: '1px solid ' + t.line, borderRadius: 10, background: t.panel, marginBottom: 14, overflow: 'hidden' }}
+      style={{ border: '1px solid ' + t.line, borderRadius: 10, background: t.panel, marginBottom: 12, overflow: 'hidden' }}
     >
       <header style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '9px 14px', borderBottom: '1px solid ' + t.lineSoft }}>
         <span style={{ fontSize: 13.5, fontWeight: 500, color: t.text }}>Needs your attention</span>

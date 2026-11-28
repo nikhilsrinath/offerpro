@@ -34,6 +34,9 @@ export function readability(d) {
 // (DocumentLibrary.jsx): /documents/document-library/organisational-process-assets.
 export const REGISTER_PATHS = {
   general: 'general-documents',
+  // Not a register of the library: every project's own files, listed read-only
+  // (components/library/ProjectDocumentsView.jsx).
+  project: 'project-documents',
   opa: 'organisational-process-assets',
   lessons: 'lessons-learned-register',
 };

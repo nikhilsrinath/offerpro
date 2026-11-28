@@ -6,7 +6,7 @@ import { confirmDialog } from '../../services/confirm';
 import { titleCase, titleCaseNode } from '../../utils/titleCase';
 import { useStickyHead } from './useStickyHead';
 import './drawer.css';
-import { prefSet, prefRemove } from '../../services/userPrefs';
+import { prefSet, prefRemove, PREFS_EVENT } from '../../services/userPrefs';
 
 /* Set by <Modal>: buttons in the side panel's foot are the small ones
    (InDrawer, in edgeUtils, gives its controls their tighter sizes). */
@@ -47,10 +47,10 @@ export function Page({ children, pad = true, fill = false }) {
     );
 }
 
-/** The strip of controls at the top of a page. Sticky, so actions stay
-    reachable in a long list without floating over it. */
-// `sticky={false}` lets the bar scroll away with the page (the General Ledger).
-export function Toolbar({ children, right, sticky = true }) {
+/** The strip of controls at the top of a page. It scrolls with the page,
+    so nothing floats over the content (agreed 2026-11-26); `sticky` pins it
+    to the top for a page that really needs that. */
+export function Toolbar({ children, right, sticky = false }) {
     const t = useT();
     return (
         <div className="edge-toolbar" style={{
@@ -81,6 +81,9 @@ export function Row({ children, gap = 10, wrap, align = 'center', style }) {
 export function Panel({ children, title, note, actions, pad = 0, style }) {
     const t = useT();
     const drawer = useContext(InDrawer);
+    // A Panel that is only its header (a table's title bar, the table under it
+    // on its own) has no body, so no line under the header either.
+    const hasBody = React.Children.toArray(children).length > 0;
     // In the side panel a Panel is a section of the sheet, not a card on it:
     // no frame of its own, its title a band, its fields the sheet's rows.
     return (
@@ -92,7 +95,7 @@ export function Panel({ children, title, note, actions, pad = 0, style }) {
         }}>
             {(title || actions) && (
                 <header style={{
-                    display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid ' + t.line,
+                    display: 'flex', alignItems: 'center', gap: 10, borderBottom: hasBody ? '1px solid ' + t.line : 'none',
                     ...(drawer ? { padding: '12px 20px', background: t.panelAlt } : { padding: '10px 14px' }),
                 }}>
                     <span style={{ fontSize: 13, color: t.text, fontWeight: 600, letterSpacing: '-0.005em' }}>{titleCaseNode(title)}</span>
@@ -101,7 +104,7 @@ export function Panel({ children, title, note, actions, pad = 0, style }) {
                     {actions}
                 </header>
             )}
-            <div className="edge-panel-body" style={{ padding: drawer ? 0 : pad }}>{children}</div>
+            {hasBody && <div className="edge-panel-body" style={{ padding: drawer ? 0 : pad }}>{children}</div>}
         </section>
     );
 }
@@ -419,17 +422,20 @@ export function Breakdown({ rows, total, max = 6 }) {
     );
 }
 
-export function Stat({ label, value, note, tone, formula }) {
+export function Stat({ label, value, note, tone, formula, reserveNote }) {
     const t = useT();
     return (
         <div style={{ minWidth: 0 }}>
-            <div style={{
+            <div className="edge-stat-value" style={{
                 fontSize: 21, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.03em',
                 fontVariantNumeric: 'tabular-nums',
                 color: tone === 'up' ? t.up : tone === 'down' ? t.down : t.text,
             }}>{value}</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: t.dim, marginTop: 5 }}>{titleCaseNode(label)}</div>
-            {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3 }}>{note}</div>}
+            {note
+                ? <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3 }}>{note}</div>
+                // An empty note line, so a card without a note is as tall as one with it.
+                : reserveNote && <div aria-hidden="true" style={{ fontSize: 11.5, marginTop: 3 }}>&nbsp;</div>}
             {/* How the figure is worked out, with the figures that went into it. */}
             {formula && (
                 <div style={{ fontSize: 11, color: t.faint, marginTop: 6, paddingTop: 6, borderTop: '1px dashed ' + t.line, lineHeight: 1.45 }}>
@@ -444,10 +450,10 @@ export function Stat({ label, value, note, tone, formula }) {
     row of cards: four boxes for four integers was more frame than content. */
 export function StatBand({ items }) {
     return (
-        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 12 }}>
+        <div className="edge-statband" style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 12 }}>
             {items.map((s) => (
                 <div key={s.label} className="stat-box" style={{ padding: '16px 18px', minWidth: 0, overflow: 'hidden' }}>
-                    <Stat {...s} />
+                    <Stat reserveNote {...s} />
                 </div>
             ))}
         </div>
@@ -494,7 +500,7 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed, height = 
             {open && createPortal(<Modal
                 open={open} onClose={() => setOpen(false)} width={560}
                 title="Edit columns"
-                note="Tick the columns you want in this table and untick the ones you don't. Saved on this device."
+                note="Tick the columns you want in this table and untick the ones you don't. Saved to your account, so every device you sign in on shows the same columns."
                 footer={<>
                     <Btn onClick={onReset} disabled={!changed}>Reset to default</Btn>
                     <Btn onClick={onAll} disabled={onCount === list.length}>Show all</Btn>
@@ -555,10 +561,25 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed, height = 
     Columns button: one toolbar over the table. With `onSort`, every titled
     column has a "⋯" menu (Sort Ascending, Sort Descending, Hide Column) and
     its title sorts on click; `sort` is { key, dir: 'asc' | 'desc' } or null.
-    A column with `sortable: false` keeps only Hide. */
-export function Table({ id, cols: allCols, children, empty, actions, sticky, lead, sort, onSort, pinEnd }) {
+    A column with `sortable: false` keeps only Hide.
+
+    `pickerIn` is an element in the page's own toolbar to put the Columns
+    button in (for a page whose toolbar sits apart from the table). While it
+    is null the button waits; leave it out to keep the button over the table.
+    `pickerSize="sm"` makes it 28px, beside a panel header's small buttons. */
+export function Table({ id, cols: allCols, children, empty, actions, sticky, lead, sort, onSort, pinEnd, pickerIn, pickerSize }) {
     const t = useT();
     const [prefs, setPrefs] = useState(() => (id ? readColPrefs(id) : {}));
+    // Columns changed on another device arrive with the settings sync (0116):
+    // an open table takes them up at once rather than on its next visit.
+    useEffect(() => {
+        if (!id) return undefined;
+        const onPrefs = (e) => {
+            if (e.detail?.keys?.includes(colStoreKey(id))) setPrefs(readColPrefs(id));
+        };
+        window.addEventListener(PREFS_EVENT, onPrefs);
+        return () => window.removeEventListener(PREFS_EVENT, onPrefs);
+    }, [id]);
     const pickable = !!id && typeof children === 'function' && allCols.length > 1;
     const isOn = (c) => !!c.always || (c.key in prefs ? !!prefs[c.key] : c.def !== false);
     const cols = pickable ? allCols.filter(isOn) : allCols;
@@ -578,8 +599,10 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
 
     const { boxRef, headRef } = useStickyHead(sticky);
 
-    const picker = pickable && <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
-        changed={Object.keys(prefs).length > 0} height={lead ? 32 : 30} />;
+    const outside = pickerIn !== undefined;
+    const pickerEl = pickable && <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
+        changed={Object.keys(prefs).length > 0} height={pickerSize === 'sm' ? 28 : lead || outside ? 32 : 30} />;
+    const picker = outside ? null : pickerEl;
     // What a column's "⋯" offers: its sort, and hiding it (not a column that is always shown).
     const colItems = (c) => [
         onSort && c.sortable !== false && { label: 'Sort Ascending', icon: ArrowUp, onClick: () => onSort({ key: c.key, dir: 'asc' }) },
@@ -591,6 +614,7 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
 
     return (
         <div>
+            {outside && pickerIn && pickerEl && createPortal(pickerEl, pickerIn)}
             {lead ? (
                 <div className="prod-toolbar edge-table-bar">
                     {lead}
@@ -598,7 +622,7 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
                     {actions}
                     {picker}
                 </div>
-            ) : (pickable || actions) && (
+            ) : ((pickable && !outside) || actions) && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                     {actions}
                     {picker}
@@ -655,6 +679,30 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
     );
 }
 
+/** The bar a Table draws over itself (its `lead` and `actions`), on its own:
+    for when there are no rows yet and the filters must stay over the message. */
+export function TableBar({ lead, actions }) {
+    return (
+        <div className="prod-toolbar edge-table-bar">
+            {lead}
+            <div style={{ flex: '1 0 0' }} />
+            {actions}
+        </div>
+    );
+}
+
+/** A table's name on the bar over it (Table `lead`), where a Panel's title would
+    be: the table stays its own box instead of sitting inside another one. */
+export function TableTitle({ children, note }) {
+    const t = useT();
+    return (
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, minWidth: 0, padding: '0 4px', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 13, color: t.text, fontWeight: 600, letterSpacing: '-0.005em' }}>{titleCaseNode(children)}</span>
+            {note && <span style={{ fontSize: 11.5, color: t.faint, overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>}
+        </span>
+    );
+}
+
 export function Td({ children, align, nowrap, muted, width, style }) {
     const t = useT();
     return (
@@ -693,7 +741,7 @@ export function Tr({ children, onClick, selected, label, debit, focus }) {
 export function Empty({ children, action }) {
     const t = useT();
     return (
-        <div style={{ padding: '38px 20px', textAlign: 'center' }}>
+        <div className="edge-empty" style={{ padding: '38px 20px', textAlign: 'center' }}>
             <div style={{ fontSize: 13, color: t.faint, lineHeight: 1.7, maxWidth: 380, margin: '0 auto' }}>
                 {children}
             </div>
@@ -799,6 +847,9 @@ function PageStyle({ t }) {
             .edge-page input[list]::-webkit-calendar-picker-indicator { display: none !important; opacity: 0; }
             .edge-page select.edge-input option { background: ${t.card}; color: ${t.text}; }
             .edge-page .edge-toolbar :is(.edge-input, .edge-btn, .edge-dropdown) { height: 32px !important; }
+            /* A toolbar or stat band brings 12px under it; in a stack that already spaces its
+               blocks (a gap), the gap is the space, so the two never add up to 24. */
+            .edge-page [style*="gap:"] > :is(.edge-toolbar, .edge-statband, .prod-toolbar, .prod-stats) { margin-bottom: 0 !important; }
             .edge-page .edge-btn[aria-pressed="true"]:not(.edge-btn-primary) {
                 background: ${t.accentSoft} !important; border-color: color-mix(in srgb, ${t.accent} 45%, transparent) !important; color: ${t.accent} !important;
             }

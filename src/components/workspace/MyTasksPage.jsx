@@ -512,7 +512,7 @@ export default function MyTasksPage() {
             )}
 
             <style>{`
-                .mt-wrap { display: grid; gap: 12px; grid-template-columns: 236px minmax(0, 1fr); align-items: start; max-width: 1180px; }
+                .mt-wrap { display: grid; gap: 12px; grid-template-columns: 236px minmax(0, 1fr); align-items: start; }
                 .mt-phone-pick { display: none; }
                 @media (max-width: 860px) {
                     .mt-wrap { grid-template-columns: minmax(0, 1fr); }

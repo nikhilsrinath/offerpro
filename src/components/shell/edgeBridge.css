@@ -1048,8 +1048,9 @@
   white-space: nowrap;
 }
 
+/* Wide enough for the longer hints ("Search company, contact, GSTIN...") to show whole. */
 .edge-shell main .prod-toolbar > .prod-search {
-  flex: 0 1 260px;
+  flex: 0 1 300px;
   min-width: 150px;
   padding: 0 12px;
   gap: 8px;
@@ -1058,7 +1059,7 @@
 .edge-shell main .prod-toolbar > .prod-search input { font-size: 13px; }
 
 .edge-shell main .prod-toolbar select {
-  max-width: 220px;
+  max-width: 280px;
   padding: 0 28px 0 12px;
   border-radius: 7px;
   font-size: 12.5px;
@@ -1162,6 +1163,15 @@
   font-size: 13px;
 }
 
+/* A row of figure tiles keeps the same 12px from the next section as every
+   other block on the page (the action cards above it, the bar over the table). */
+.edge-shell main .prod-stats { margin-bottom: 12px; }
+/* The same 12px under the catalogue's toolbar and a table's note. */
+.edge-shell main .prod-perf-note { margin-bottom: 12px; }
+/* Those 12px come from the block itself only when nothing else spaces it: in a
+   stack laid out with a gap, the gap is the space, so the two never add up. */
+.edge-shell main [style*="gap:"] > :is(.edge-toolbar, .edge-statband, .prod-toolbar, .prod-stats) { margin-bottom: 0 !important; }
+
 /* The bar over a kit <Table> (its `lead`): one compact line of 32px controls,
    the search and the pickers giving up width before anything wraps. */
 .edge-shell main .prod-toolbar.edge-table-bar {
@@ -1177,12 +1187,15 @@
   border-radius: 8px !important;
 }
 .edge-shell main .edge-table-bar > .edge-btn { flex-shrink: 0; padding: 0 10px !important; gap: 5px !important; }
-.edge-shell main .edge-table-bar > .prod-search { flex: 1 1 200px; max-width: 260px !important; min-width: 120px; padding: 0 10px; gap: 6px; }
+/* Wide enough for the ledger's hint ("Search client, invoice no., receipt no...")
+   to show whole when there is room; it still gives way on a narrow screen. */
+.edge-shell main .edge-table-bar > .prod-search { flex: 1 1 300px; max-width: 340px !important; min-width: 120px; padding: 0 10px; gap: 6px; }
 .edge-shell main .edge-table-bar > .prod-search input { height: 100% !important; font-size: 12.5px !important; }
 .edge-shell main .edge-table-bar select {
   flex: 0 1 auto;
   min-width: 96px;
-  max-width: 160px !important;
+  /* Room for a project's full label (PRJ-2023-001 · Berachah International LLP). */
+  max-width: 260px !important;
   padding: 0 24px 0 10px;
   text-overflow: ellipsis;
   background-position: calc(100% - 12px) center, calc(100% - 7px) center;
@@ -1367,6 +1380,30 @@
    The older pages' own sizes (Records, product cards) brought down to the
    kit's: 12.5px body, 13px titles, ~20px figures, no lift on hover. */
 .edge-shell main .records-summary-grid { gap: 12px; }
+.edge-shell main .records-page { gap: 12px; }
+/* Every headline figure the size of the kit's StatBand number (21px / 600),
+   its label 12px: Finance Status, Billing, Vendors, Tax, P&L, Records. */
+.edge-shell main :is(.pro-stat-value, .prod-stat-value, .fin-status-stat-value),
+.edge-shell main .records-summary-count { font-size: 21px; font-weight: 600; line-height: 1.1; }
+.edge-shell main :is(.pro-stat-label, .prod-stat-label, .fin-status-stat-label),
+.edge-shell main .records-summary-label { font-size: 12px; }
+/* Finance Status and Billing & Revenue: the same 12px between blocks as every
+   other page (they stacked a 24px gap on 32px bottom margins). */
+.edge-shell main :is(.finance-page, .pro-dashboard) { gap: 12px; }
+.edge-shell main :is(.finance-page, .pro-dashboard) :is(.pro-stats-grid, .pro-two-col) { gap: 12px; margin-bottom: 0; }
+/* The list/grid toggle in Records' toolbar: the kit Seg's 32px well. */
+.edge-shell main .prod-toolbar > .records-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--edge-line);
+  border-radius: 8px;
+  background: var(--edge-panel-alt);
+}
+.edge-shell main .records-view-toggle > .records-view-btn { height: 100%; padding: 0 8px; border-radius: 6px; color: var(--edge-faint); }
+.edge-shell main .records-view-toggle > .records-view-btn.active { background: var(--edge-accent-soft); color: var(--edge-accent); }
 .edge-shell main .records-summary-card {
   padding: 12px 14px;
   gap: 12px;

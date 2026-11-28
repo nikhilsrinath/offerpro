@@ -8,7 +8,7 @@ import {
 import { useT } from '../ui/edgeUtils';
 import { useAuth } from '../../context/AuthContext';
 import { useOrg } from '../../context/OrgContext';
-import { useSection, money, fmtDate } from '../financial/financeHooks';
+import { useSection, money } from '../financial/financeHooks';
 import {
     PROJECT_STATUSES, statusLabel, groupByStatus, projectProgress, matchProject, isClosed, deliveryLabel,
 } from '../../services/projectAnalytics';
@@ -16,7 +16,7 @@ import { canSeeFinancials, canCreateProjects, portfolio, activeProjectCount } fr
 import { isLimitReached, getPlanConfig } from '../../services/planConfig';
 import { orgStore } from '../../services/orgStore';
 import HealthChip from './HealthChip';
-import { useProjectPins, togglePin, movePin, withPinsFirst } from './projectPins';
+import { useProjectPins, togglePin, movePin, withPinsFirst, MAX_PINS } from './projectPins';
 import { Pin, PinOff, ChevronUp, ChevronDown } from 'lucide-react';
 import { projectRef } from './projectSlug';
 
@@ -34,6 +34,10 @@ const STATUS_TONE = { active: 'accent', on_hold: 'warn', planned: 'neutral', com
 
 // Latest start first; a project with no start date by the day it was entered.
 const startOf = (p) => String(p.start_date || p.created_at || '').slice(0, 10);
+// The list's dates as the rest of the app writes them, with the day in two
+// digits: "01 Apr 2026", "23 Nov 2026".
+const longDate = (d) => new Date(`${String(d).slice(0, 10)}T00:00:00`)
+    .toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 const latestFirst = (a, b) => startOf(b).localeCompare(startOf(a))
     || String(b.created_at || '').localeCompare(String(a.created_at || ''));
 
@@ -59,6 +63,8 @@ export default function ProjectsPage() {
     const [mine, setMine] = useRememberedState('projects.mine', false);
     const [healthFilter, setHealthFilter] = useRememberedState('projects.health', 'all');
     const [money_, setMoney] = useState({});
+    // Where the list puts its Columns button: in the toolbar, beside New Project.
+    const [colSlot, setColSlot] = useState(null);
 
     const fin = canSeeFinancials();
     const plan = orgStore.getProfile().plan || 'free';
@@ -150,7 +156,23 @@ export default function ProjectsPage() {
 
     return (
         <Page>
-            <Toolbar right={newProject} sticky={false}>
+            {/* The headline numbers first, then the filters right over the list they narrow. */}
+            {fin && (
+                <StatBand items={[
+                    { label: 'Open projects', value: counts.open },
+                    { label: 'Contract value shown', value: money(totalContract) },
+                    {
+                        label: 'Net margin shown',
+                        value: money(filtered.reduce((s, p) => s + (Number(money_[p.id]?.net_margin) || 0), 0)),
+                        note: 'Invoiced revenue less direct costs and labour',
+                    },
+                ]} />
+            )}
+
+            <Toolbar sticky={false} right={<>
+                {view === 'list' && <span ref={setColSlot} style={{ display: 'inline-flex', alignItems: 'center' }} />}
+                {newProject}
+            </>}>
                 <Seg value={view} onChange={setView} label="View" options={[
                     { id: 'list', label: 'List' }, { id: 'board', label: 'Board' },
                 ]} />
@@ -190,25 +212,13 @@ export default function ProjectsPage() {
                 </Select>
             </Toolbar>
 
-            {fin && (
-                <StatBand items={[
-                    { label: 'Open projects', value: counts.open },
-                    { label: 'Contract value shown', value: money(totalContract) },
-                    {
-                        label: 'Net margin shown',
-                        value: money(filtered.reduce((s, p) => s + (Number(money_[p.id]?.net_margin) || 0), 0)),
-                        note: 'Invoiced revenue less direct costs and labour',
-                    },
-                ]} />
-            )}
-
             {view === 'board' ? (
                 <Board projects={filtered} empById={empById}
                     progressOf={progressOf} onOpen={open} />
             ) : filtered.length === 0 ? (
                 <Panel><Empty>Nothing matches those filters.</Empty></Panel>
             ) : (
-                <Table id="projects" cols={[
+                <Table id="projects" pickerIn={colSlot} cols={[
                     { key: 'sn', label: 'S.No', width: 56, always: true },
                     { key: 'c', label: 'Code', width: 110 },
                     { key: 'n', label: 'Project', always: true },
@@ -227,7 +237,8 @@ export default function ProjectsPage() {
                     { key: 'cr', label: 'Created', def: false },
                     ...(fin ? [
                         { key: 'v', label: 'Contract', align: 'right' },
-                        { key: 'g', label: 'Net margin', align: 'right' },
+                        { key: 'g', label: 'Net Margin', align: 'right' },
+                        { key: 'gp', label: 'Net Margin (%)', align: 'right' },
                         { key: 'inv', label: 'Invoiced', align: 'right', def: false },
                         { key: 'col', label: 'Collected', align: 'right', def: false },
                         { key: 'out', label: 'Outstanding', align: 'right', def: false },
@@ -252,10 +263,10 @@ export default function ProjectsPage() {
                                 {show('n') && (
                                     <Td nowrap>
                                         <span style={{ display: 'block', fontWeight: 500 }}>{p.name}</span>
-                                        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
-                                            {p.client_id ? 'Client' : 'Internal'}
-                                            {p.archived_at ? ' · archived' : ''}
-                                        </span>
+                                        {/* Client or Internal is the Type of Project column; only an archive is said here. */}
+                                        {p.archived_at && (
+                                            <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>Archived</span>
+                                        )}
                                     </Td>
                                 )}
                                 {show('cl') && <Td nowrap>{p.client_id ? 'Client' : 'Internal'}</Td>}
@@ -268,8 +279,8 @@ export default function ProjectsPage() {
                                 )}
                                 {show('s') && <Td nowrap><Status tone={STATUS_TONE[p.status]}>{statusLabel(p.status)}</Status></Td>}
                                 {show('h') && <Td nowrap><HealthChip health={f?.health} reasons={f?.health_reasons || []} /></Td>}
-                                {show('d') && <Td muted nowrap>{p.start_date ? fmtDate(p.start_date) : dash}</Td>}
-                                {show('ed') && <Td muted nowrap>{p.target_end_date ? fmtDate(p.target_end_date) : dash}</Td>}
+                                {show('d') && <Td muted nowrap>{p.start_date ? longDate(p.start_date) : dash}</Td>}
+                                {show('ed') && <Td muted nowrap>{p.target_end_date ? longDate(p.target_end_date) : dash}</Td>}
                                 {show('p') && (
                                     <Td>
                                         {prog == null ? dash : (
@@ -284,16 +295,21 @@ export default function ProjectsPage() {
                                 {show('bt') && <Td nowrap muted>{p.billing_type ? String(p.billing_type).replace(/_/g, ' ') : '-'}</Td>}
                                 {show('cur') && <Td nowrap muted>{p.currency || '-'}</Td>}
                                 {show('tg') && <Td muted>{p.tags?.length ? p.tags.join(', ') : '-'}</Td>}
-                                {show('ae') && <Td muted nowrap>{p.actual_end_date ? fmtDate(p.actual_end_date) : '-'}</Td>}
-                                {show('cr') && <Td muted nowrap>{p.created_at ? fmtDate(p.created_at) : '-'}</Td>}
+                                {show('ae') && <Td muted nowrap>{p.actual_end_date ? longDate(p.actual_end_date) : '-'}</Td>}
+                                {show('cr') && <Td muted nowrap>{p.created_at ? longDate(p.created_at) : '-'}</Td>}
                                 {show('v') && <Td align="right" nowrap>{money(p.contract_value)}</Td>}
                                 {show('g') && (
                                     <Td align="right" nowrap>
                                         {f?.net_margin == null ? dash : (
-                                            <span style={{ color: Number(f.net_margin) < 0 ? t.down : t.text }}>
-                                                {money(f.net_margin)}
-                                                {f.net_margin_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {Number(f.net_margin_pct).toFixed(2)}%</span>}
-                                            </span>
+                                            <span style={{ color: Number(f.net_margin) < 0 ? t.down : t.text }}>{money(f.net_margin)}</span>
+                                        )}
+                                    </Td>
+                                )}
+                                {/* The margin as a share of revenue, in its own column (it used to trail the amount). */}
+                                {show('gp') && (
+                                    <Td align="right" nowrap>
+                                        {f?.net_margin_pct == null ? dash : (
+                                            <span style={{ color: Number(f.net_margin_pct) < 0 ? t.down : t.text }}>{Number(f.net_margin_pct).toFixed(2)}%</span>
                                         )}
                                     </Td>
                                 )}
@@ -310,7 +326,7 @@ export default function ProjectsPage() {
                                 )}
                                 {show('pin') && (
                                     <Td align="right" nowrap>
-                                        <PinControls name={p.name} pinned={pins.includes(p.id)}
+                                        <PinControls name={p.name} pinned={pins.includes(p.id)} full={pins.length >= MAX_PINS}
                                             first={pinnedShown[0] === p.id} last={pinnedShown[pinnedShown.length - 1] === p.id}
                                             onToggle={() => setPins((x) => togglePin(x, p.id))}
                                             onMove={(by) => setPins((x) => movePin(x, p.id, by))} />
@@ -326,7 +342,7 @@ export default function ProjectsPage() {
 }
 
 /** Pin / unpin, and for a pinned project, move it up or down among the pinned. */
-function PinControls({ name, pinned, first, last, onToggle, onMove }) {
+function PinControls({ name, pinned, full, first, last, onToggle, onMove }) {
     const t = useT();
     // The row opens the project on click; these buttons do their own thing.
     const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
@@ -341,8 +357,9 @@ function PinControls({ name, pinned, first, last, onToggle, onMove }) {
     );
     return (
         <span style={{ display: 'inline-flex', gap: 3 }}>
-            {btn(pinned ? `Unpin ${name}` : `Pin ${name} to the top`, onToggle,
-                pinned ? <PinOff size={13} aria-hidden="true" /> : <Pin size={13} aria-hidden="true" />, false, pinned)}
+            {/* Pinned projects also sit in the side rail: at most MAX_PINS. */}
+            {btn(pinned ? `Unpin ${name}` : full ? `Up to ${MAX_PINS} projects can be pinned. Unpin one first.` : `Pin ${name} to the top and the side bar`, onToggle,
+                pinned ? <PinOff size={13} aria-hidden="true" /> : <Pin size={13} aria-hidden="true" />, !pinned && full, pinned)}
             {pinned && btn(`Move ${name} up`, () => onMove(-1), <ChevronUp size={14} aria-hidden="true" />, first)}
             {pinned && btn(`Move ${name} down`, () => onMove(1), <ChevronDown size={14} aria-hidden="true" />, last)}
         </span>

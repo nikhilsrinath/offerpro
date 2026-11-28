@@ -5,6 +5,7 @@ import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { useProjectScope } from '../projects/projectScope';
 import { useStickyHead } from '../ui/useStickyHead';
+import { Seg } from '../ui/edge';
 
 const PAGE_SIZE = 50;
 const rateLabel = (rate) => (Number(rate) ? `${Number(rate).toFixed(2)}%` : 'Nil / exempt');
@@ -128,7 +129,7 @@ export default function TaxSummary({ projectId = null }) {
       <div
         role="note"
         style={{
-          display: 'flex', gap: '0.6rem', alignItems: 'flex-start', padding: '0.75rem 1rem', marginBottom: '1rem',
+          display: 'flex', gap: '0.6rem', alignItems: 'flex-start', padding: '0.75rem 1rem', marginBottom: 12,
           borderRadius: '0.6rem', border: '1px solid var(--border-default)', background: 'var(--surface-hover)',
           fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5,
         }}
@@ -144,12 +145,8 @@ export default function TaxSummary({ projectId = null }) {
       </div>
 
       <div className="prod-toolbar">
-        <div className="prod-seg" role="group" aria-label="Period">
-          {KINDS.map((k) => (
-            <button key={k.id} aria-pressed={kind === k.id} className={`pro-chip ${kind === k.id ? 'active' : ''}`}
-              onClick={() => { setKind(k.id); setPeriodId(null); }}>{k.label}</button>
-          ))}
-        </div>
+        {/* The kit's segmented control: the chosen period in the light-blue tint, like every other page. */}
+        <Seg label="Period" value={kind} onChange={(id) => { setKind(id); setPeriodId(null); }} options={KINDS} />
         {options.length > 0 && (
           <select aria-label="Tax period" className="prod-select" value={period.id} onChange={(e) => setPeriodId(e.target.value)}>
             {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
@@ -189,7 +186,7 @@ export default function TaxSummary({ projectId = null }) {
       </p>
 
       {summary.byRate.length > 0 && (
-        <section aria-label="Rate-wise Table" style={{ marginBottom: '1.25rem' }}>
+        <section aria-label="Rate-wise Table" style={{ marginBottom: 12 }}>
           <h3 className="tax-section-title">Rate-wise Table</h3>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <RateTable title="Input" tone="var(--success)" rows={summary.byRate.filter((b) => b.kind === 'Input')} />

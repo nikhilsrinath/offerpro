@@ -1,9 +1,10 @@
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, matchPath, useLocation, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Bell, Sun, Moon, LogOut, Building2, User as UserIcon,
-    Check, ChevronDown, Search, History,
+    Check, ChevronDown, Search, History, Lightbulb, LifeBuoy,
 } from 'lucide-react';
+import { resetGuides } from '../guide/guideState';
 import { MONO, makeTokens, railTokens } from '../../theme/edge';
 import { EdgeThemeContext } from '../../theme/EdgeTheme';
 import { useOrg } from '../../context/OrgContext';
@@ -13,7 +14,7 @@ import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { RailSlotContext } from './railSlot';
 import { useRailPin, RailPinButton } from './railPin';
 import {
-    RailIsland, RailHead, RailBrand, RailBack, RailHeading, RailList, RailItem, IslandBtn, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
+    RailIsland, RailHead, RailBrand, RailBack, RailHeading, RailList, RailItem, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
 } from './railIsland';
 import MobileNav from './MobileNav';
 import { MODULES, RAIL_IDS, RAIL_SPLIT_AFTER } from './modules';
@@ -23,9 +24,12 @@ import { useAssistant } from '../assistant/assistantStore';
 import './edgeBridge.css';
 import '../../theme/surface.css';
 import '../assistant/copilot.css';
+import '../../theme/delight.css';
+import { DELIGHT, useCountUp } from '../../theme/delight';
 import { confirmDialog } from '../../services/confirm';
 import { titleCaseNode } from '../../utils/titleCase';
 import { projectRef } from '../projects/projectSlug';
+import RailPinnedProjects from './railPinnedProjects';
 import { useToast } from '../shared/Toast';
 import { FOCUS_PARAM, findFocusTarget } from './focusTarget';
 import { prefSet } from '../../services/userPrefs';
@@ -128,14 +132,13 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
     );
 }
 
-/* `workspace` lays the frame out the way the hub is: no top bar on desktop,
-   the page carries its own heading, notifications and the account at the
-   foot of the rail, and EdgeAI docked on the right. A project uses it, so
-   opening one feels like entering its own hub. */
+/* `workspace` is a project's frame: its sections in the rail, EdgeAI docked
+   on the right, and the page carrying its own heading, so the top bar there
+   holds only the search and the controls every other page has. */
 export default function ModuleShell({
-    theme, user, module: mod, items, title, subtitle, note, actions,
-    onToggleTheme, onLogout, flush = false, railSlot = false, noRail = false, workspace = false,
-    topNav = false, back = HUB_BACK, children,
+    theme, user, module: mod, items, title, subtitle, note, actions, heading,
+    onToggleTheme, onLogout, flush = false, railSlot = false, noRail = false, workspace = false, railLabel,
+    topNav = false, back = HUB_BACK, guide = null, children,
 }) {
     const isDark = theme === 'dark';
     const t = makeTokens(isDark);
@@ -159,29 +162,38 @@ export default function ModuleShell({
     const [menu, setMenu] = useState(null);
     const [logsOpen, setLogsOpen] = useState(false);
     useFocusTarget(navigate);
-    // A menu opened from the rail foot keeps the rail open, so it doesn't jump.
-    const rail = railSlot || railPinned || hoverRail || (workspace && !!menu);
+    const rail = railSlot || railPinned || hoverRail;
     const [slotEl, setSlotEl] = useState(null);
     // Rail items with a sub-list (Projects → each project), open or shut.
     const [expanded, setExpanded] = useState({});
     const [notifs, setNotifs] = useState([]);
     const barRef = useRef(null);
-    const footRef = useRef(null);
     const notifBtnRef = useRef(null);
     const accountBtnRef = useRef(null);
     const mainRef = useRef(null);
+    // Headline figures count up as they appear (theme/delight.js).
+    useCountUp(mainRef);
 
     const assistant = useAssistant();
     const [aiHidden, setAiHidden] = useState(() => readFlag(AI_KEY));
     const showDock = workspace && !aiHidden && winW >= DOCK_MIN;
     const setAi = (hidden) => { setAiHidden(hidden); writeFlag(AI_KEY, hidden); };
-    // On desktop a workspace has no top bar; phones keep it for the menus.
-    const bare = workspace && !isMobile;
+    // On desktop a workspace's page carries its own heading, so the top bar's
+    // title (the project's name) is a label rather than the page's h1, and the
+    // search sits beside it.
+    const pageHeads = workspace && !isMobile;
     // Pages as tabs under the bar instead of a rail (desktop; phones already
     // get their strip below).
     // With the pages in tabs, the rail is the hub's: every module, this one
     // lit. Those links push, so Back returns here from the module opened.
     const tabs = topNav && !isMobile;
+    const TitleTag = pageHeads ? 'div' : 'h1';
+    // A module with tabs names itself in the top bar; the page it is on is
+    // the heading inside the card, over its one-line description and the tabs.
+    const location = useLocation();
+    const pageHead = tabs;
+    const onItem = pageHead ? items.find((it) => it.active ?? !!matchPath(
+        { path: (it.to || '/' + it.id).split('?')[0], end: !!it.end }, location.pathname)) : null;
 
     useEffect(() => {
         const read = () => setNotifs(documentStore.getNotifications() || []);
@@ -193,7 +205,7 @@ export default function ModuleShell({
     useEffect(() => {
         if (!menu) return undefined;
         const onDown = (e) => {
-            if (barRef.current?.contains(e.target) || footRef.current?.contains(e.target)) return;
+            if (barRef.current?.contains(e.target)) return;
             setMenu(null);
         };
         // Escape hands focus back to the button that opened the menu, so the
@@ -236,7 +248,6 @@ export default function ModuleShell({
     const accountLabel = `Account: ${orgName}`
         + (profile.incomplete ? ` · company profile incomplete, ${profile.summary.toLowerCase()}` : '');
 
-    const islandW = railSlot ? RAIL_SLOT_W : rail ? RAIL_OPEN_W : RAIL_SHUT_W;
 
     const avatar = (size, radius) => (activeOrg?.logo_url ? (
         <img src={activeOrg.logo_url} alt="" style={{ width: size, height: size, borderRadius: radius, objectFit: 'cover', display: 'block' }} />
@@ -319,13 +330,10 @@ export default function ModuleShell({
                     onClick={() => { setMenu(null); navigate('/me'); }} />
                 <PopRow t={t} icon={<Check size={13} strokeWidth={1.8} />} label="Plans & billing" note={plan.displayName}
                     onClick={() => { setMenu(null); navigate('/pricing'); }} />
-                {/* Without a top bar the theme switch lives here, as on the hub. */}
-                {bare && (
-                    <PopRow t={t} icon={isDark ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
-                        label={isDark ? 'Light mode' : 'Dark mode'} onClick={() => { setMenu(null); onToggleTheme?.(); }} />
-                )}
             </div>
             <div style={{ padding: 4, borderTop: '1px solid ' + t.lineSoft }}>
+                <PopRow t={t} icon={<Lightbulb size={13} strokeWidth={1.8} />} label="Show page tips again"
+                    onClick={() => { setMenu(null); resetGuides(); }} />
                 <PopRow t={t} danger icon={<LogOut size={13} strokeWidth={1.8} />} label="Log out"
                     onClick={() => { setMenu(null); onLogout?.(); }} />
             </div>
@@ -335,7 +343,7 @@ export default function ModuleShell({
     return (
         <EdgeThemeContext.Provider value={theme}>
         <RailSlotContext.Provider value={railSlot && !isMobile ? slotEl : null}>
-        <div className="edge-shell" data-edge-dark={isDark ? '1' : '0'} style={{
+        <div className={'edge-shell' + (DELIGHT ? ' delight' : '')} data-edge-dark={isDark ? '1' : '0'} data-module={mod?.id || undefined} style={{
             width: '100%', height: '100%', minHeight: 0, display: 'flex', overflow: 'hidden',
             background: t.shell, fontFamily: MONO, color: t.text,
             WebkitFontSmoothing: 'antialiased',
@@ -350,16 +358,16 @@ export default function ModuleShell({
                     onHover={railSlot ? undefined : setHoverRail}
                     widths={railSlot ? { open: RAIL_SLOT_W, shut: RAIL_SLOT_W } : { open: RAIL_OPEN_W, shut: RAIL_SHUT_W }}
                 >
-                    <RailHead pin={railSlot ? null : (
-                        <RailPinButton
-                            t={rt} pinned={railPinned} visible={rail}
-                            onToggle={() => { setRailPinned(!railPinned); setHoverRail(false); }}
-                        />
-                    )}>
+                    {/* The open/close control lives in the foot, with the account buttons,
+                        so nothing sits beside the logo. */}
+                    <RailHead>
                         {/* The hub's rail is headed by the mark (the way back is
                             then the arrow in the top bar); a module's by the way back. */}
-                        {tabs ? <RailBrand t={rt} open={rail} /> : <RailBack t={rt} open={rail} to={back.to} label={back.label} />}
+                        {tabs ? <RailBrand open={rail} /> : <RailBack t={rt} open={rail} to={back.to} label={back.label} />}
                     </RailHead>
+                    {/* Under the Opstead logo, the same line that sets AI apart from
+                        Projects, lined up with it (the lists pad 8px each side). */}
+                    {tabs && <div style={{ padding: '0 8px', flexShrink: 0 }}><RailSplit t={rt} above={2} below={8} /></div>}
 
                     {railSlot ? (
                         <div ref={setSlotEl} className="edge-scroll" style={{
@@ -375,14 +383,12 @@ export default function ModuleShell({
                                     <RailItem key={id} t={rt} open={rail} icon={m.icon} label={m.label}
                                         to={'/' + m.defaultPage} active={m.id === mod?.id} />
                                 );
-                                // A hairline sets Dashboard · Today · AI apart from the rest.
+                                // A line sets Dashboard · Today · Workspace · AI apart from the rest.
                                 if (id !== RAIL_SPLIT_AFTER) return item;
-                                return [item, (
-                                    <div key="rail-split" role="separator" aria-hidden="true" style={{
-                                        height: 1, flexShrink: 0, margin: '6px 9px', background: rt.line,
-                                    }} />
-                                )];
+                                return [item, <RailSplit key="rail-split" t={rt} />];
                             })}
+                            {/* Under Documents, a line and the pinned projects. */}
+                            <RailPinnedProjects t={rt} open={rail} split={<RailSplit t={rt} />} />
                         </RailList>
                     ) : (<>
                     {/* Dashboard · Today · Workspace · AI stay at the top of the
@@ -397,15 +403,15 @@ export default function ModuleShell({
                                     to={'/' + m.defaultPage} active={m.id === mod?.id} />
                             );
                         })}
-                        <div role="separator" aria-hidden="true" style={{
-                            height: 1, flexShrink: 0, margin: '6px 9px', background: rt.line,
-                        }} />
+                        {/* A heading follows, with its own room above. */}
+                        <RailSplit t={rt} below={2} />
                     </RailList>
                     </div>
                     <RailList label={(mod?.label || 'Module') + ' pages'}>
-                        {/* A workspace's page already carries its name in the heading. */}
+                        {/* A workspace's page already carries its name in the heading;
+                            a project still names its group, apart from the main items above. */}
                         {workspace
-                            ? null
+                            ? (railLabel ? <RailHeading t={rt} open={rail}>{railLabel}</RailHeading> : null)
                             : <RailHeading t={rt} open={rail}>{mod?.label || 'Module'}</RailHeading>}
                         {(items || []).map((it) => {
                             const link = (
@@ -469,43 +475,36 @@ export default function ModuleShell({
                                 </div>
                             );
                         })}
+                        {/* The pinned projects here too: inside a project, the
+                            others are a click away, not back through the list. */}
+                        <RailPinnedProjects t={rt} open={rail} split={<RailSplit t={rt} />} />
                     </RailList>
                     </>)}
 
                     {!railSlot && <RailSpacer />}
 
-                    {workspace ? (
-                        /* ── foot: notifications, the theme, then the account as on the hub.
-                           Shut, a column of icons, a red dot where something
-                           needs attention. */
-                        <RailFoot t={rt} open={rail} footRef={footRef}>
-                            <IslandBtn
-                                t={rt} icon={Bell} label="Notifications" dot={unread > 0} btnRef={notifBtnRef}
-                                aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-                                aria-expanded={menu === 'notifs'} aria-haspopup="true" aria-controls="edge-notif-panel"
-                                onClick={() => setMenu((m) => (m === 'notifs' ? null : 'notifs'))}
-                            />
-                            {/* Without a top bar the theme switch lives here. */}
-                            <IslandBtn t={rt} icon={isDark ? Sun : Moon} label={isDark ? 'Light mode' : 'Dark mode'} onClick={() => onToggleTheme?.()} />
-                            <AccountBtns t={rt} profile={profile} onLogout={onLogout} />
+                    {/* Help & Support, above the plan card on every page. */}
+                    {!railSlot && (
+                        <div style={{ flexShrink: 0, paddingBottom: 6 }}>
+                            <RailList label="Help">
+                                <RailItem t={rt} open={rail} icon={LifeBuoy} label="Help & Support" to="/help" active={mod?.id === 'help'} />
+                            </RailList>
+                        </div>
+                    )}
 
-                            {menu === 'notifs' && (
-                                <Pop t={t} width={318} id="edge-notif-panel" role="region" label="Notifications"
-                                    at={{ left: islandW + 4, bottom: 12 }}>{notifPanel}</Pop>
-                            )}
-                        </RailFoot>
-                    ) : (<>
-                        <RailPlanCard t={rt} open={rail} plan={plan} />
-                        <RailFoot t={rt} open={rail}>
-                            <AccountBtns t={rt} profile={profile} onLogout={onLogout} />
-                        </RailFoot>
-                    </>)}
+                    <RailPlanCard t={rt} open={rail} plan={plan} />
+                    <RailFoot t={rt} open={rail}>
+                        {!railSlot && rail && (
+                            <RailPinButton t={rt} pinned={railPinned}
+                                onToggle={() => { setRailPinned(!railPinned); setHoverRail(false); }} />
+                        )}
+                        <AccountBtns t={rt} profile={profile} onLogout={onLogout} />
+                    </RailFoot>
                 </RailIsland>
             )}
 
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {/* ── top bar ─────────────────────────────────────────────── */}
-                {!bare && (
+                {/* ── top bar: on every page, a project's included ──────────── */}
                 <header ref={barRef} style={{
                     display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, flexShrink: 0, zIndex: 40,
                     // On a desktop the bar sits on the canvas above the page card,
@@ -523,27 +522,25 @@ export default function ModuleShell({
                         </Link>
                     )}
 
-                    <div style={{ minWidth: 0, ...(note && !isMobile ? { flex: '1 1 auto', maxWidth: 760 } : {}) }}>
-                        <h1 style={{
-                            margin: 0, fontSize: isMobile ? 15 : 15.5, fontWeight: 600,
+                    <div style={{ minWidth: 0, ...((note || subtitle) && !isMobile && !pageHead ? { flex: '0 1 auto', maxWidth: 760 } : {}) }}>
+                        <TitleTag style={{
+                            margin: 0, fontSize: isMobile ? 15 : 17, fontWeight: 600,
                             letterSpacing: '-0.015em', color: t.text, lineHeight: 1.2,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>{titleCaseNode(title)}</h1>
-                        {/* A tabbed page has no subtitle; one that must say what
-                            it is for has a `note`, up to two lines. */}
-                        {note && !isMobile ? (
+                        }}>{titleCaseNode(pageHead ? (mod?.label || title) : title)}</TitleTag>
+                        {/* Every page says what it is for in one short line: here, or
+                            with a tabbed module, under the page's heading in the card. */}
+                        {(note || subtitle) && !isMobile && !pageHead && (
                             <div style={{
-                                fontSize: 11.5, lineHeight: 1.35, color: t.faint, marginTop: 1, overflow: 'hidden',
-                                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                            }}>{note}</div>
-                        ) : subtitle && !isMobile && !tabs && (
-                            <div style={{ fontSize: 11.5, color: t.faint, marginTop: 1, whiteSpace: 'nowrap' }}>{subtitle}</div>
+                                fontSize: 11.5, color: t.faint, marginTop: 1,
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }}>{note || subtitle}</div>
                         )}
                     </div>
 
                     <div style={{ flex: 1 }} />
 
-                    {tabs && <GlobalSearch t={t} width={400} align="right" />}
+                    {(tabs || pageHeads) && <GlobalSearch t={t} width={400} align="right" />}
 
                     {actions}
 
@@ -619,24 +616,34 @@ export default function ModuleShell({
                         )}
                     </div>
                 </header>
-                )}
 
                 <div style={{
                     flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden',
                     background: t.panel,
                     ...(isMobile ? {} : {
-                        // Without a top bar (a workspace) the card keeps a gutter above too.
-                        margin: (bare ? '8px ' : '0 ') + (noRail ? '8px 8px' : '8px 8px 0'), borderRadius: 12,
+                        margin: '0 ' + (noRail ? '8px 8px' : '8px 8px 0'), borderRadius: 12,
                         border: '1px solid ' + t.line,
                     }),
                 }}>
-                {tabs && (items || []).length > 1 && (
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
-                        padding: '8px 20px', borderBottom: '1px solid ' + t.line,
+                {pageHead && (
+                    <div className="edge-pagehead" style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, flexShrink: 0,
+                        padding: '16px 20px 10px', borderBottom: '1px solid ' + t.line,
                     }}>
+                        {/* The page (the lit tab, or the page reached from one) and what it is for. */}
+                        <div style={{ minWidth: 0, maxWidth: '100%' }}>
+                            <h2 style={{
+                                margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em',
+                                color: t.text, lineHeight: 1.25, overflowWrap: 'anywhere',
+                            }}>{titleCaseNode(heading || (onItem ? onItem.label : title))}</h2>
+                            {(note || subtitle) && (
+                                <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{note || subtitle}</div>
+                            )}
+                        </div>
+                        {/* A module of one page (Today, AI) has no tabs to show. */}
+                        {(items || []).length > 1 && (
                         <nav aria-label={(mod?.label || 'Module') + ' pages'} className="edge-scroll edge-mobnav" style={{
-                            display: 'inline-flex', gap: 2, padding: 2, minWidth: 0, overflowX: 'auto',
+                            display: 'inline-flex', gap: 2, padding: 2, minWidth: 0, maxWidth: '100%', overflowX: 'auto',
                             border: '1px solid ' + t.line, borderRadius: 8, background: t.panelAlt,
                         }}>
                             {items.map((it) => (
@@ -652,6 +659,7 @@ export default function ModuleShell({
                                     }; }}>{titleCaseNode(it.label)}</NavLink>
                             ))}
                         </nav>
+                        )}
                     </div>
                 )}
 
@@ -673,6 +681,9 @@ export default function ModuleShell({
                         ))}
                     </nav>
                 )}
+
+                {/* The page's tip (components/guide), under its heading, until dismissed. */}
+                {guide && <div style={{ padding: isMobile ? '12px 12px 0' : '16px 20px 0', flexShrink: 0 }}>{guide}</div>}
 
                 {/* ── page body ───────────────────────────────────────────── */}
                 <main
@@ -738,6 +749,21 @@ function notifTarget(n) {
         default:
             return null;
     }
+}
+
+/* The line between Dashboard · Today · Workspace · AI and the module's own
+   pages (and above the pinned projects): 2px in the rail's muted text colour,
+   so it reads clearly on the navy rail, where the hairline colours did not. */
+function RailSplit({ t, above = 10, below = 10 }) {
+    return (
+        // A 2px border, not a 2px-tall fill: on a scaled screen (125%, 150%) a fill
+        // lands on part pixels and each line came out a different thickness;
+        // a border is always snapped to the same whole number of pixels.
+        <div role="separator" aria-hidden="true" style={{
+            height: 0, flexShrink: 0, margin: `${above}px 9px ${below}px`,
+            borderTop: `2px solid ${t.faint || t.lineStrong || t.line}`, opacity: 0.55,
+        }} />
+    );
 }
 
 function iconBtn(t, active) {

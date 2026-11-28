@@ -1,10 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { togglePin, movePin, withPinsFirst } from './projectPins';
+import { togglePin, movePin, withPinsFirst, MAX_PINS } from './projectPins';
 
 describe('project pins', () => {
     it('pins at the bottom and unpins', () => {
         expect(togglePin(['a'], 'b')).toEqual(['a', 'b']);
         expect(togglePin(['a', 'b'], 'a')).toEqual(['b']);
+    });
+
+    it('pins no more than MAX_PINS, and still unpins when full', () => {
+        const full = ['a', 'b', 'c', 'd', 'e'];
+        expect(MAX_PINS).toBe(5);
+        expect(togglePin(full, 'f')).toEqual(full);
+        expect(togglePin(full, 'c')).toEqual(['a', 'b', 'd', 'e']);
     });
 
     it('moves a pin up and down, and not past either end', () => {

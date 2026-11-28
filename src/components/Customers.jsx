@@ -92,7 +92,7 @@ export function CustomerDetail({ customer: shown, orgId, onBack, onEdit, backLab
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* Breadcrumb / header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -296,6 +296,8 @@ export default function Customers() {
   }, [finDocs]);
   // List (one row per client, the default) or Grid (cards); kept while moving between pages.
   const [view, setView] = useRememberedState('clients.view', 'list');
+  // Where the table puts its Columns button: in this toolbar, beside Add Client.
+  const [colSlot, setColSlot] = useState(null);
 
   useEffect(() => {
     if (activeOrg?.id) loadCustomers();
@@ -387,7 +389,7 @@ export default function Customers() {
 
   // ── List view ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* Toolbar */}
       <div className="prod-toolbar" style={{ marginBottom: 0 }}>
@@ -404,7 +406,9 @@ export default function Customers() {
         <Seg size="sm" value={view} onChange={setView} label="View" options={[
           { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
         ]} />
-        <button onClick={openAdd} className="prod-add-btn">
+        {/* The table's Columns button lands here, beside Add Client. */}
+        <span ref={setColSlot} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }} />
+        <button onClick={openAdd} className="prod-add-btn" style={{ marginLeft: 0 }}>
           <Plus size={15} /> Add Client
         </button>
       </div>
@@ -421,7 +425,7 @@ export default function Customers() {
           </span>
         </div>
       ) : view === 'list' ? (
-        <Table id="clients" cols={[
+        <Table id="clients" pickerIn={colSlot} cols={[
           { key: 'sn', label: 'S.No', width: 56, always: true },
           { key: 'n', label: 'Client', always: true },
           { key: 'e', label: 'Email' },

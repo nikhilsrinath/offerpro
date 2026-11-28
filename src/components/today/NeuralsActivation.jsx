@@ -48,11 +48,11 @@ export default function NeuralsActivation({ phase, canBuild, error, counts, onAc
                             <span className="na-badge is-done"><Check size={12} strokeWidth={2.4} aria-hidden="true" />Activated</span>
                             <h2 className="na-title">Your Neurals Are Live</h2>
                             <p className="na-text">
-                                EdgeAI now reasons over your company's own records.
+                                OpsteadAI now reasons over your company's own records.
                                 {counts && <> It connected <b>{fmt(counts.nodes)}</b> records with <b>{fmt(counts.edges)}</b> links.</>}
                             </p>
                             <button type="button" className="na-btn" onClick={onContinue} autoFocus>
-                                Start Using EdgeAI
+                                Start Using OpsteadAI
                             </button>
                         </>
                     ) : building ? (
@@ -70,7 +70,7 @@ export default function NeuralsActivation({ phase, canBuild, error, counts, onAc
                             <span className="na-badge"><Sparkles size={12} strokeWidth={2} aria-hidden="true" />Neurals</span>
                             <h2 className="na-title">Activate Your Neurals</h2>
                             <p className="na-text">
-                                EdgeAI answers from one connected picture of your company: team,
+                                OpsteadAI answers from one connected picture of your company: team,
                                 customers, finance, products, documents and operations. Activate it
                                 once and chat, agents and connectors open up.
                             </p>

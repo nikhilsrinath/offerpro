@@ -49,7 +49,7 @@ export default function ProjectOverview({ project, onTab }) {
     const burn = burnVsTime(project, f?.budget_burn_pct ?? null, today);
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             {fin && f && (
                 <StatBand items={[
                     { label: 'Contract', value: money(f.contract_value) },

@@ -3,9 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/opstead-mark.svg" />
   <link rel="icon" type="image/png" sizes="48x48" href="/opstead-mark-48.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/opstead-mark-192.png" />
-  <link rel="apple-touch-icon" href="/opstead-mark-192.png" />
+  <link rel="apple-touch-icon" href="/opstead-app-180.png" />
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#000000" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -16,11 +17,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-  <title>Opstead | Business Operations Platform</title>
+  <title>Opstead | Agentic Operating System for Businesses</title>
+  <meta name="description" content="Opstead: projects, clients, ledgers, payroll and documents in one workspace, with AI that answers from your own data." />
+  <style>
+    /* Shown until the app's code arrives (React replaces it), the same as the app's own loading screen. */
+    body { margin: 0; }
+    .boot { min-height: 100vh; display: grid; place-items: center; background: #f7f8fa; font-family: Inter, system-ui, sans-serif; }
+    .boot img { display: block; width: 44px; height: 44px; margin: 0 auto 1.25rem; animation: boot-breathe 1.6s ease-in-out infinite; }
+    .boot span { font-size: 14px; color: #6b7280; font-weight: 500; }
+    @keyframes boot-breathe { 0%, 100% { transform: scale(0.9); opacity: 0.55; } 50% { transform: scale(1.04); opacity: 1; } }
+    @media (prefers-color-scheme: dark) { .boot { background: #0b1220; } .boot span { color: #94a3b8; } }
+    @media (prefers-reduced-motion: reduce) { .boot img { animation: none; } }
+  </style>
 </head>
 
 <body>
-  <div id="root"></div>
+  <div id="root"><div class="boot"><div style="text-align:center"><img src="/opstead-mark-192.png" alt="" width="44" height="44" /><span>Loading Opstead...</span></div></div></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

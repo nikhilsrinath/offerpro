@@ -12,10 +12,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
    ══════════════════════════════════════════════════════════════════════════ */
 
 const KEY = 'edgeos.projects.pins.v1';
+// Pinned projects also sit in the side rail, which has room for this many.
+export const MAX_PINS = 5;
+// The other hooks in this tab (the rail and the list) are told of a change.
+const LOCAL_EVENT = 'edgeos:project-pins';
 
-/** Pins `id` at the bottom of the pinned list, or unpins it. */
+/** Pins `id` at the bottom of the pinned list, or unpins it. Past MAX_PINS, nothing is pinned. */
 export function togglePin(pins, id) {
-    return pins.includes(id) ? pins.filter((x) => x !== id) : [...pins, id];
+    if (pins.includes(id)) return pins.filter((x) => x !== id);
+    return pins.length >= MAX_PINS ? pins : [...pins, id];
 }
 
 /** Moves a pinned id one place up (by -1) or down (by +1); unchanged at an end. */
@@ -115,11 +120,20 @@ export function useProjectPins(orgId, userId) {
         };
     }, [orgId, userId, key]);
 
-    // Another tab pinning something shows here too.
+    // Another tab pinning something shows here too, and so does another part
+    // of this page (the rail, when the list pins one).
     useEffect(() => {
         const onStorage = (e) => { if (e.key === key) setState({ key, pins: read(key) }); };
+        const onLocal = (e) => {
+            if (e.detail?.key !== key) return;
+            setState((s) => (s.key === key && same(s.pins, e.detail.pins) ? s : { key, pins: e.detail.pins }));
+        };
         window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
+        window.addEventListener(LOCAL_EVENT, onLocal);
+        return () => {
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener(LOCAL_EVENT, onLocal);
+        };
     }, [key]);
 
     // The pins as last set, read by setPins without waiting for a render.
@@ -132,6 +146,7 @@ export function useProjectPins(orgId, userId) {
         latest.current = next;
         cache(key, next);
         setState({ key, pins: next });
+        window.dispatchEvent(new CustomEvent(LOCAL_EVENT, { detail: { key, pins: next } }));
         if (!orgId || !userId) return;
         saving.current += 1;
         queue.current = queue.current.then(() => savePins(orgId, userId, next))

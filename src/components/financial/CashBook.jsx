@@ -560,16 +560,15 @@ export function RecordMoneyCard({ t, scoped, logs, onRecord, style, labels }) {
       )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 340px', minWidth: 0, display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-          <RecordBtn t={t} tone={t.up} icon={side('in').icon || ArrowDownLeft} label={side('in').label} note={side('in').note} onClick={() => onRecord('in')} />
-          <RecordBtn t={t} tone={t.down} icon={side('out').icon || ArrowUpRight} label={side('out').label} note={side('out').note} onClick={() => onRecord('out')} />
+          <RecordBtn t={t} icon={side('in').icon || ArrowDownLeft} label={side('in').label} note={side('in').note} onClick={() => onRecord('in')} />
+          <RecordBtn t={t} icon={side('out').icon || ArrowUpRight} label={side('out').label} note={side('out').note} onClick={() => onRecord('out')} />
         </div>
         {/* On the right: everything recorded, in a side panel. */}
         {logs && (
-          <button type="button" className="gl-logs-btn" onClick={() => setOpen(true)} aria-haspopup="dialog"
+          <button type="button" className="gl-logs-btn stat-box" onClick={() => setOpen(true)} aria-haspopup="dialog"
             title="Everything recorded here, newest first" style={{
               flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
-              minWidth: 80, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
-              background: t.card, border: '1px solid ' + t.line, color: t.text,
+              minWidth: 80, padding: '8px 12px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', color: t.text,
             }}>
             <History size={15} aria-hidden="true" style={{ color: t.dim }} />
             <span style={{ fontSize: 12.5, fontWeight: 600 }}>Logs</span>
@@ -578,30 +577,20 @@ export function RecordMoneyCard({ t, scoped, logs, onRecord, style, labels }) {
         )}
       </div>
       {open && <RecordLogs t={t} logs={logs} onOpen={showEntry} onClose={() => setOpen(false)} />}
-      <style>{`
-        .gl-rec-btn { transition: background .15s, border-color .15s; }
-        .gl-rec-btn:hover { background: color-mix(in srgb, var(--rec-tone, ${t.ghost}) ${t.isDark ? 18 : 10}%, ${t.card}) !important; border-color: color-mix(in srgb, var(--rec-tone, ${t.lineStrong}) 55%, transparent) !important; }
-        .gl-logs-btn { transition: border-color .15s; }
-        .gl-logs-btn:hover { border-color: ${t.lineStrong} !important; }
-        @media (prefers-reduced-motion: reduce) { .gl-rec-btn:hover { transform: none; } }
-      `}</style>
     </section>
   );
 }
 
-/** One side of "Record money": a large target in the side's colour. */
-function RecordBtn({ t, tone, icon: Icon, label, note, onClick }) {
+/** One side of "Record money": a large target, styled as a stat box (the
+    same light-blue tile and icon chip as the figures under it). */
+function RecordBtn({ t, icon: Icon, label, note, onClick }) {
   return (
-    <button type="button" onClick={onClick} className="gl-rec-btn" style={{
-      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, cursor: 'pointer',
+    <button type="button" onClick={onClick} className="gl-rec-btn stat-box" style={{
+      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, cursor: 'pointer',
       textAlign: 'left', fontFamily: 'inherit', color: t.text,
-      background: `color-mix(in srgb, ${tone} ${t.isDark ? 12 : 6}%, ${t.card})`,
-      border: `1px solid color-mix(in srgb, ${tone} 30%, transparent)`,
-      '--rec-tone': tone,
     }}>
-      <span aria-hidden="true" style={{
+      <span aria-hidden="true" className="stat-box-icon" style={{
         width: 28, height: 28, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
-        background: tone, color: '#fff',
       }}><Icon size={15} /></span>
       <span style={{ minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 13, fontWeight: 600, letterSpacing: '-0.005em' }}>{label}</span>

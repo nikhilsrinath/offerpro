@@ -13,7 +13,7 @@ export default function AnnouncementsTab({ notices, readIds, onOpen }) {
   const shown = filter === 'unread' ? unread : filter === 'pinned' ? notices.filter((a) => a.is_pinned) : notices;
 
   return (
-    <div style={{ display: 'grid', gap: 14, maxWidth: 860 }}>
+    <div style={{ display: 'grid', gap: 12, maxWidth: 860 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Seg size="sm" value={filter} onChange={setFilter} options={[
           { id: 'all', label: 'All', count: notices.length },

@@ -32,7 +32,7 @@ export default function AttendanceTab({ monthKey, setMonthKey, rows, loading, na
   const listed = Object.values(rows || {}).sort((a, b) => b.work_date.localeCompare(a.work_date));
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           <Btn size="sm" onClick={() => setMonthKey(shiftMonth(monthKey, -1))} title="Previous month"><ChevronLeft size={13} /></Btn>
@@ -54,7 +54,7 @@ export default function AttendanceTab({ monthKey, setMonthKey, rows, loading, na
       </div>
 
       {loading ? <Loading>Loading {monthLabel(monthKey)}…</Loading> : view === 'calendar' ? (
-        <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)' }}>
           <Panel title="Calendar">
             <div style={{ padding: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4 }}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, LifeBuoy } from 'lucide-react';
 import { MONO } from '../../theme/edge';
 import { MODULES } from './modules';
 
@@ -22,7 +22,9 @@ export default function MobileNav({ t, active }) {
     const sheetRef = useRef(null);
 
     const primary = MODULES.filter((m) => PRIMARY.includes(m.id));
-    const rest = MODULES.filter((m) => !PRIMARY.includes(m.id));
+    // Help & Support closes the More sheet, as it closes the sidebar on a computer.
+    const rest = [...MODULES.filter((m) => !PRIMARY.includes(m.id)),
+        { id: 'help', label: 'Help & Support', icon: LifeBuoy, defaultPage: 'help' }];
     const moreActive = rest.some((m) => m.id === active);
 
     useEffect(() => {

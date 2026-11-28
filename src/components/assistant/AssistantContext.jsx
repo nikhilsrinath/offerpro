@@ -566,7 +566,7 @@ export function AssistantProvider({ edgeContext, children }) {
     const shareChat = useCallback(async (chat) => {
         const text = (chat.messages || [])
             .filter((m) => !m.error && m.content)
-            .map((m) => `${m.role === 'user' ? 'You' : 'EdgeAI'}: ${m.content}`)
+            .map((m) => `${m.role === 'user' ? 'You' : 'OpsteadAI'}: ${m.content}`)
             .join('\n\n');
         if (!text) { setNote('That chat is empty. Nothing to share yet.'); return; }
         const payload = `${chat.title}\n\n${text}`;

@@ -167,6 +167,14 @@ export default function Announcements() {
 
     return (
         <Page>
+            {/* The headline numbers first, then the filters right over the list they narrow. */}
+            <StatBand items={[
+                { label: 'On the board', value: live.length },
+                { label: 'Scheduled', value: scheduled.length },
+                { label: 'Pinned', value: live.filter((a) => a.is_pinned).length },
+                { label: 'Expired', value: items.filter((a) => isExpired(a)).length },
+            ]} />
+
             <Toolbar right={<Btn primary onClick={() => openEditor(null)}>New Announcement</Btn>}>
                 <Seg value={tab} onChange={setTab} options={[
                     { id: 'board', label: 'Board' },
@@ -174,13 +182,6 @@ export default function Announcements() {
                     { id: 'history', label: 'History' },
                 ]} />
             </Toolbar>
-
-            <StatBand items={[
-                { label: 'On the board', value: live.length },
-                { label: 'Scheduled', value: scheduled.length },
-                { label: 'Pinned', value: live.filter((a) => a.is_pinned).length },
-                { label: 'Expired', value: items.filter((a) => isExpired(a)).length },
-            ]} />
 
             {loading ? <Loading /> : shown.length === 0 ? (
                 <Panel>

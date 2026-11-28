@@ -1,6 +1,20 @@
 /* ── AI → Connectors ──────────────────────────────────────────────────── */
 .cn-group + .cn-group { margin-top: 22px; }
-.cn-group-title { font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 0 0 10px; }
+/* The category heading: larger than the cards' names, with how many it holds. */
+.cn-group-title { display: flex; align-items: baseline; gap: 8px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); margin: 0 0 12px; }
+.cn-group-count { font-size: 12px; font-weight: 500; color: var(--muted); }
+/* The categories as buttons over the cards: All, or one category.
+   Selection is the light blue, as everywhere (design rules). */
+/* Frozen at the top of the pane while the cards scroll under it; the page's
+   own background behind it, so no card shows through. The negative top
+   margin keeps the spacing it had before it was sticky. */
+.cn-cats { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: 0; z-index: 5; background: var(--bg, var(--edge-panel, #fff)); padding: 12px 0; margin: -12px 0 6px; }
+.cn-cat { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s; }
+.cn-cat:hover { border-color: var(--accent); }
+.cn-cat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cn-cat[aria-pressed="true"] { background: var(--edge-soft, #dbeafe); border-color: transparent; color: var(--edge-soft-text, #0f2a4a); }
+.cn-cat-n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cn-cat[aria-pressed="true"] .cn-cat-n { color: inherit; opacity: .75; }
 .cn-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 /* The whole card is a button that opens the connector's guide. */
 .cn-card { display: flex; flex-direction: column; gap: 6px; min-height: 148px; padding: 16px; border-radius: 12px; background: var(--card); border: 1px solid var(--line) !important; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: border-color .15s; }

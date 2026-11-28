@@ -20,6 +20,7 @@ import EdgeBrain from '../brain/EdgeBrain';
 import * as brain from '../../services/brainService';
 import NeuralsActivation from './NeuralsActivation';
 import ConnectorsView from '../connectors/ConnectorsView';
+import { AI_VIEWS } from './aiTabs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    AI: EdgeAI as a page of its own, in four parts behind one switch.
@@ -45,12 +46,8 @@ import ConnectorsView from '../connectors/ConnectorsView';
    the model reads it and chooses what to do.
    ══════════════════════════════════════════════════════════════════════════ */
 
-const VIEWS = [
-    { id: 'ask', label: 'Ask' },
-    { id: 'agents', label: 'Agents' },
-    { id: 'connectors', label: 'Connectors' },
-    { id: 'neurals', label: 'Neurals' },
-];
+// The parts are the page heading's tabs (aiTabs, shown by App.jsx).
+const VIEWS = AI_VIEWS;
 
 const focusComposer = () => {
     const el = document.querySelector('.cp-page .cp-composer textarea');
@@ -98,12 +95,11 @@ function AskHero({ a, composer, name }) {
 }
 
 /* The graph needs a height to fill, so the pane is a column whose frame takes
-   what is left under the title, at the same width as Agents and Connectors. */
+   what is left, at the same width as Agents and Connectors. */
 function NeuralsView() {
     return (
         <div className="ask-pane ask-neurals eo-scroll">
             <div className="ask-pane-inner">
-                <div className="ask-pane-head"><h2>Neurals</h2></div>
                 <div className="ask-neurals-frame"><EdgeBrain /></div>
             </div>
         </div>
@@ -126,7 +122,6 @@ function AgentsView({ onOpen }) {
     return (
         <div className="ask-pane eo-scroll">
             <div className="ask-pane-inner">
-                <div className="ask-pane-head"><h2>Agents</h2><span className="ag-badge">{AGENTS.length}</span></div>
                 {auto.error && <div className="ag-flash is-neg ag-auto-err" role="alert"><span>{auto.error}</span></div>}
                 <div className="ag-grid">
                     <DeadlineWatchCard auto={auto} onOpen={() => onOpen(DEADLINE_AGENT.id)} />
@@ -231,11 +226,14 @@ export default function AskPage({ theme = 'dark' }) {
     const name = activeOrg?.company_name || activeOrg?.name || 'there';
     const gate = useNeuralsGate(activeOrg?.id);
 
-    const go = (next, agentId = null) => {
-        // Back on Ask, an agent's conversation gives way to an ordinary chat.
-        if (next === 'ask' && a.active.agent) a.startChat();
-        navigate(aiPath(next, agentId));
-    };
+    const go = (next, agentId = null) => navigate(aiPath(next, agentId));
+    // Back on Ask (from the heading's tab), an agent's conversation gives way
+    // to an ordinary chat. Only on the way back, not when the page first opens.
+    const lastView = useRef(view);
+    useEffect(() => {
+        if (view === 'ask' && lastView.current && lastView.current !== 'ask' && a.active.agent) a.startChat();
+        lastView.current = view;
+    }, [view, a]);
 
     // Older links named the section in ?view= and the agent in ?agent=; the
     // bare /ai is Ask. Each lands on the path that names what is shown.
@@ -246,15 +244,8 @@ export default function AskPage({ theme = 'dark' }) {
         return <Navigate to={aiPath(agentSlug && view === 'agents' ? 'agents' : (view || 'ask'))} replace />;
     }
 
-    const switcher = (
-        <div className="cp-tabs ask-switch" role="tablist" aria-label="Section">
-            {VIEWS.map((v) => (
-                <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => go(v.id)}>
-                    {v.label}
-                </button>
-            ))}
-        </div>
-    );
+    // The parts are switched from the page heading's tabs now (aiTabs).
+    const switcher = null;
 
     const pane = agent === DEADLINE_AGENT.id
         ? <DeadlineWatch theme={theme} onBack={() => go('agents')} />

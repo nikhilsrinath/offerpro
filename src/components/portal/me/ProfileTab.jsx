@@ -93,8 +93,8 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
   ];
 
   return (
-    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'minmax(260px, 0.8fr) minmax(0, 1.6fr)', alignItems: 'start' }}>
-      <div style={{ display: 'grid', gap: 14 }}>
+    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'minmax(260px, 0.8fr) minmax(0, 1.6fr)', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gap: 12 }}>
         <Panel>
           <div style={{ padding: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12 }}>
             <div style={{ position: 'relative' }}>
@@ -142,7 +142,7 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gap: 14 }}>
+      <div style={{ display: 'grid', gap: 12 }}>
         <Panel title="Personal details" note="visible to your admins">
           <form onSubmit={save} style={{ padding: 14, display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : '1fr 1fr' }}>
             <Field label="Full name"><Input value={form.full_name} onChange={set('full_name')} maxLength={120} required /></Field>

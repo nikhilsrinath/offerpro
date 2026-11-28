@@ -47,7 +47,7 @@ export const GUIDES = {
     google_drive: {
         summary: 'Bring the documents your company already keeps in Drive into Opstead, without uploading them again. You choose each file or folder; Opstead never sees the rest of your Drive.',
         uses: [
-            { title: 'Feed the Library and Neurals', text: 'Contracts, SOPs and policies you pick are added to the Library, so the Internal Knowledge Agent and EdgeAI can answer from them.' },
+            { title: 'Feed the Library and Neurals', text: 'Contracts, SOPs and policies you pick are added to the Library, so the Internal Knowledge Agent and OpsteadAI can answer from them.' },
             { title: 'Attach to records', text: 'Link a Drive file to a project, client or vendor. It opens from Opstead and stays in Drive.' },
             { title: 'Keeps up to date', text: 'When a picked file changes in Drive, Opstead reads the new version the next day.' },
         ],
@@ -184,7 +184,7 @@ export const GUIDES = {
         summary: 'Bring your company’s SharePoint sites and document libraries into the Opstead Library.',
         uses: [
             { title: 'Company knowledge in one place', text: 'HR policies, process documents and handbooks on SharePoint are added to the Library and Neurals.' },
-            { title: 'Answers with sources', text: 'When EdgeAI answers from a SharePoint document, it names the document it used.' },
+            { title: 'Answers with sources', text: 'When OpsteadAI answers from a SharePoint document, it names the document it used.' },
         ],
         setup: [
             'Click Connect and sign in with Microsoft.',
@@ -223,7 +223,7 @@ export const GUIDES = {
         summary: 'If your company keeps its wiki, SOPs or meeting notes in Notion, bring them into Opstead so the agents can use them.',
         uses: [
             { title: 'Wiki into the Library', text: 'The Notion pages you share are added to the Library and Neurals.' },
-            { title: 'Grounded answers', text: 'Ask EdgeAI “what is our leave policy?” and it answers from your Notion page, with a link to it.' },
+            { title: 'Grounded answers', text: 'Ask OpsteadAI “what is our leave policy?” and it answers from your Notion page, with a link to it.' },
             { title: 'Stays current', text: 'Edited pages are read again each day.' },
         ],
         setup: [
@@ -410,6 +410,218 @@ export const GUIDES = {
             reads: ['Emails sent to your Bills Inbox address'],
             writes: ['Draft bills, for you to approve'],
             never: ['Posts anything to the ledger without your approval'],
+        },
+        who: ADMIN,
+    },
+
+    /* ── Added 2026-11-27. Drafts of how each is meant to work: review them
+       against what gets built before these connectors go live. ── */
+
+    google_meet: {
+        summary: 'Meetings you hold on Google Meet, connected to the clients and projects they are about.',
+        uses: [
+            { title: 'Meet links on events', text: 'An event made in the Workspace calendar can get a Meet link in one click.' },
+            { title: 'Meetings on the record', text: 'A meeting with a client’s contacts shows on that client and project, so you can see when you last spoke.' },
+        ],
+        setup: [
+            'Click Connect and sign in with Google.',
+            'Allow Opstead to create Meet links for your events.',
+        ],
+        tips: ['Add client contacts’ email addresses in Opstead, so meetings are matched to the right client.'],
+        access: {
+            reads: ['Meet links and attendees of meetings Opstead creates'],
+            writes: ['Meet links on events you make in Opstead'],
+            never: ['Joins, records or listens to your meetings'],
+        },
+        who: 'Each person connects their own Google account.',
+    },
+
+    slack: {
+        summary: 'Opstead’s alerts and reminders in the Slack channels your team already reads.',
+        uses: [
+            { title: 'Alerts to a channel', text: 'Agent alerts, deadline reminders and approvals waiting on someone are posted to the channel you choose.' },
+            { title: 'Open in Opstead', text: 'Each message links straight to the invoice, bill, task or project it is about.' },
+        ],
+        setup: [
+            'Click Connect and add the Opstead app to your Slack workspace.',
+            'Pick the channel each kind of alert goes to.',
+        ],
+        tips: ['Use a separate channel for finance alerts, so they are not lost among project chatter.'],
+        access: {
+            reads: ['The list of channels, to choose from'],
+            writes: ['Messages in the channels you choose'],
+            never: ['Reads your conversations or direct messages'],
+        },
+        who: ADMIN,
+    },
+
+    zoom: {
+        summary: 'Zoom meetings for the clients and projects they are about, made from Opstead.',
+        uses: [
+            { title: 'Zoom links on events', text: 'An event made in the Workspace calendar can get a Zoom link in one click.' },
+            { title: 'Meetings on the record', text: 'A meeting with a client’s contacts shows on that client and project.' },
+        ],
+        setup: [
+            'Click Connect and sign in with Zoom.',
+            'Allow Opstead to schedule meetings on your behalf.',
+        ],
+        tips: ['Connect the Zoom account that hosts your client calls.'],
+        access: {
+            reads: ['Meetings Opstead schedules: time, link and attendees'],
+            writes: ['Meetings you schedule from Opstead'],
+            never: ['Joins, records or reads your other meetings'],
+        },
+        who: 'Each person connects their own Zoom account.',
+    },
+
+    calendly: {
+        summary: 'Meetings booked through your Calendly links, on the client or lead who booked them.',
+        uses: [
+            { title: 'Bookings on the record', text: 'When a client or lead books a time, the meeting shows on them in Opstead, and a new name can be added as a lead.' },
+            { title: 'On your Workspace calendar', text: 'Booked meetings appear in the Workspace calendar next to your other dates.' },
+        ],
+        setup: [
+            'Click Connect and sign in with Calendly.',
+            'Choose which event types Opstead should follow.',
+        ],
+        tips: ['Turn on adding leads from bookings if your sales calls start in Calendly.'],
+        access: {
+            reads: ['Bookings on the event types you choose: time, name and email'],
+            writes: ['Nothing in Calendly'],
+            never: ['Changes or cancels your bookings'],
+        },
+        who: 'Each person connects their own Calendly account.',
+    },
+
+    wispr_flow: {
+        summary: 'Dictate into Opstead with Wispr Flow: notes, task descriptions and questions to OpsteadAI, by voice.',
+        uses: [
+            { title: 'Speak instead of type', text: 'Wispr Flow works in any text box, so notes, tasks and messages can be dictated.' },
+            { title: 'Ask OpsteadAI aloud', text: 'Dictate a question in the Ask box and send it as you would a typed one.' },
+        ],
+        setup: [
+            'Install Wispr Flow on your computer and sign in.',
+            'Click into any text box in Opstead and start dictating.',
+        ],
+        tips: ['Wispr Flow runs on your computer, so nothing needs connecting on the Opstead side.'],
+        access: {
+            reads: ['Nothing in Opstead'],
+            writes: ['The text you dictate, into the box you are typing in'],
+            never: ['Sends your Opstead data to Wispr Flow'],
+        },
+        who: 'Each person installs it for themselves.',
+    },
+
+    miro: {
+        summary: 'Your Miro boards on the projects they belong to.',
+        uses: [
+            { title: 'Boards on projects', text: 'Link a Miro board to a project, so the team opens it from the project.' },
+            { title: 'Plans into tasks', text: 'Sticky notes you pick on a board can become tasks on the project.' },
+        ],
+        setup: [
+            'Click Connect and sign in with Miro.',
+            'Pick the boards to link, and the project each belongs to.',
+        ],
+        tips: ['Link the planning board when a project starts, so everyone finds it in one place.'],
+        access: {
+            reads: ['The boards you pick, and the items you choose on them'],
+            writes: ['Nothing in Miro'],
+            never: ['Reads boards you have not picked'],
+        },
+        who: 'Each person connects their own Miro account.',
+    },
+
+    canva: {
+        summary: 'Your Canva designs, with your company’s details, from Opstead.',
+        uses: [
+            { title: 'Designs on records', text: 'Link a Canva design, such as a proposal or a client deck, to a project or client.' },
+            { title: 'Your brand, filled in', text: 'Your logo, address and contact details from the Company Profile can be used in Canva designs.' },
+        ],
+        setup: [
+            'Click Connect and sign in with Canva.',
+            'Pick the designs to link to projects and clients.',
+        ],
+        tips: ['Keep proposal and deck templates in one Canva folder for the whole team.'],
+        access: {
+            reads: ['The designs you pick'],
+            writes: ['Nothing in Canva'],
+            never: ['Reads designs you have not picked'],
+        },
+        who: 'Each person connects their own Canva account.',
+    },
+
+    adobe: {
+        summary: 'Adobe Acrobat Sign and your Adobe documents, for agreements that need a signature.',
+        uses: [
+            { title: 'Send for signature', text: 'Send an NDA, MoU or agreement made in Opstead to be signed through Adobe Acrobat Sign.' },
+            { title: 'Signed copy kept', text: 'When everyone has signed, the signed PDF is filed back on the record.' },
+        ],
+        setup: [
+            'Click Connect and sign in with your Adobe account.',
+            'Choose Adobe Acrobat Sign for documents that need signing.',
+        ],
+        tips: ['Use it for agreements with outside parties who prefer an Adobe signature.'],
+        access: {
+            reads: ['The status of documents Opstead sends for signing'],
+            writes: ['Signing requests for documents you send'],
+            never: ['Reads your other Adobe files'],
+        },
+        who: ADMIN,
+    },
+
+    mailchimp: {
+        summary: 'Your clients and leads as a Mailchimp audience, for newsletters and campaigns.',
+        uses: [
+            { title: 'Audience in step', text: 'Clients and leads you choose are added to a Mailchimp audience, and kept up to date.' },
+            { title: 'Campaign results on leads', text: 'Opens and clicks show on the lead, so sales can see who is interested.' },
+        ],
+        setup: [
+            'Click Connect and sign in with Mailchimp.',
+            'Choose the audience, and which clients and leads to add to it.',
+        ],
+        tips: ['Only add people who have agreed to hear from you; Mailchimp unsubscribes are respected.'],
+        access: {
+            reads: ['Campaign opens and clicks for contacts Opstead added'],
+            writes: ['Contacts in the audience you choose'],
+            never: ['Sends a campaign for you'],
+        },
+        who: ADMIN,
+    },
+
+    semrush: {
+        summary: 'Search and traffic figures for your clients’ websites, for agencies that report on them.',
+        uses: [
+            { title: 'Figures on the client', text: 'Organic traffic and keyword positions for a client’s website show on that client.' },
+            { title: 'For reports', text: 'Use the figures in client reports and project updates.' },
+        ],
+        setup: [
+            'Click Connect and add your Semrush API key.',
+            'Add each client’s website in their details.',
+        ],
+        tips: ['Semrush counts API use against your plan; Opstead refreshes figures once a week.'],
+        access: {
+            reads: ['Search figures for the websites you add'],
+            writes: ['Nothing in Semrush'],
+            never: ['Shares your Opstead data with Semrush'],
+        },
+        who: ADMIN,
+    },
+
+    ahrefs: {
+        summary: 'Backlink and search figures for your clients’ websites, for agencies that report on them.',
+        uses: [
+            { title: 'Figures on the client', text: 'Domain rating, backlinks and organic keywords for a client’s website show on that client.' },
+            { title: 'For reports', text: 'Use the figures in client reports and project updates.' },
+        ],
+        setup: [
+            'Click Connect and add your Ahrefs API key.',
+            'Add each client’s website in their details.',
+        ],
+        tips: ['Ahrefs counts API use against your plan; Opstead refreshes figures once a week.'],
+        access: {
+            reads: ['Search figures for the websites you add'],
+            writes: ['Nothing in Ahrefs'],
+            never: ['Shares your Opstead data with Ahrefs'],
         },
         who: ADMIN,
     },

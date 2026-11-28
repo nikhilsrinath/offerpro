@@ -160,6 +160,19 @@ export default function Portfolio() {
         <TipProvider>
             <Page>
                 <style>{`.edge-sort:hover { color: ${t.text} !important; }`}</style>
+                {/* The headline numbers first, then the filters. */}
+                <StatBand items={[
+                    { label: 'Active projects', value: open.length },
+                    { label: 'At risk or off track', value: open.filter((r) => r.health && r.health !== 'on_track').length,
+                        tone: open.some((r) => r.health === 'off_track') ? 'down' : undefined },
+                    ...(fin ? [
+                        { label: 'Total contract', value: money(sum('contract_value')) },
+                        { label: 'Invoiced', value: money(sum('revenue_invoiced')) },
+                        { label: 'Collected', value: money(sum('revenue_collected')) },
+                        { label: 'Net margin', value: money(sum('net_margin')), tone: sum('net_margin') < 0 ? 'down' : undefined },
+                    ] : []),
+                ]} />
+
                 <Toolbar sticky={false} right={<Btn onClick={exportCsv}>Export CSV</Btn>}>
                     <Select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 190, height: 29 }}>
                         {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -173,18 +186,6 @@ export default function Portfolio() {
                     )}
                     <Muted>Before GST · revenue invoiced, cash collected alongside</Muted>
                 </Toolbar>
-
-                <StatBand items={[
-                    { label: 'Active projects', value: open.length },
-                    { label: 'At risk or off track', value: open.filter((r) => r.health && r.health !== 'on_track').length,
-                        tone: open.some((r) => r.health === 'off_track') ? 'down' : undefined },
-                    ...(fin ? [
-                        { label: 'Total contract', value: money(sum('contract_value')) },
-                        { label: 'Invoiced', value: money(sum('revenue_invoiced')) },
-                        { label: 'Collected', value: money(sum('revenue_collected')) },
-                        { label: 'Net margin', value: money(sum('net_margin')), tone: sum('net_margin') < 0 ? 'down' : undefined },
-                    ] : []),
-                ]} />
 
                 <Grid gap={14} cols="repeat(auto-fit, minmax(300px, 1fr))">
                     {fin && (

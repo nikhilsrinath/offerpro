@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Wallet, Percent, Download } from 'lucide-reac
 import { profitAndLoss, periodSeries, periodBounds, downloadCsv } from '../../services/financeAnalytics';
 import { categoryLabel, loadFinanceCategories } from '../../services/financeCategories';
 import { Stat } from './financeUi';
+import { Seg } from '../ui/edge';
 import { useSection, money, fmtDate } from './financeHooks';
 import { baseCurrency, formatCurrency } from '../../shared/currency.js';
 
@@ -60,11 +61,8 @@ export default function ProfitLoss() {
   return (
     <div style={{ maxWidth: '100%' }}>
       <div className="prod-toolbar">
-        <div className="prod-seg" role="group" aria-label="Period">
-          {PRESETS.map((p) => (
-            <button key={p.id} aria-pressed={preset === p.id} className={`pro-chip ${preset === p.id ? 'active' : ''}`} onClick={() => setPreset(p.id)}>{p.label}</button>
-          ))}
-        </div>
+        {/* The kit's segmented control: the chosen period in the light-blue tint, like every other page. */}
+        <Seg label="Period" value={preset} onChange={setPreset} options={PRESETS} />
         {preset === 'custom' && (
           <div className="prod-range">
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -95,7 +93,7 @@ export default function ProfitLoss() {
         owner drawings and tax remitted. Those are on the General Ledger.
       </p>
 
-      <div className="pro-card" style={{ marginBottom: '1rem' }}>
+      <div className="pro-card" style={{ marginBottom: 12 }}>
         <div className="pro-card-header">
           <div className="pro-card-title-group"><h3>{seriesTitle}</h3></div>
         </div>

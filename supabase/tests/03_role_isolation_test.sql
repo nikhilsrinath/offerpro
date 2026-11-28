@@ -187,6 +187,16 @@ begin
     insert into project_templates (org_id, project_id, name, body_html) values (o, pj, 'Template ' || s, '<p>{{client_name}}</p>');
     -- The project's whiteboard (0111).
     insert into project_whiteboards (org_id, project_id, data) values (o, pj, '{"items": []}');
+    -- Social (0119), on the `tasks` permission: a launch, a campaign of it, a
+    -- post of that campaign, a competitor and a month of figures.
+    with l as (insert into social_launches (org_id, project_id, name) values (o, pj, 'Launch ' || s) returning id),
+         c as (insert into social_campaigns (org_id, project_id, name, launch_id)
+               select o, pj, 'Campaign ' || s, id from l returning id)
+    insert into social_posts (org_id, project_id, title, campaign_id, platforms)
+      select o, pj, 'Post ' || s, id, array['instagram'] from c;
+    insert into social_competitors (org_id, project_id, name) values (o, pj, 'Competitor ' || s);
+    insert into social_metrics (org_id, project_id, platform, period)
+      values (o, pj, 'linkedin', date_trunc('month', current_date)::date);
 
     -- CRM deals (0113), on the `clients` permission. The insert writes the
     -- deal's own 'created' activity row too.
@@ -332,6 +342,11 @@ select c.table_name as tbl,
                                 when 'timesheet_entries' then 'timesheets'
                                 when 'task_dependencies' then 'tasks'
                                 when 'project_whiteboards' then 'tasks'
+                                when 'social_launches' then 'tasks'
+                                when 'social_campaigns' then 'tasks'
+                                when 'social_posts' then 'tasks'
+                                when 'social_competitors' then 'tasks'
+                                when 'social_metrics' then 'tasks'
                                 when 'project_raci_items' then 'project_members'
                                 when 'project_raci_assignments' then 'project_members'
                                 when 'project_clients' then 'clients'

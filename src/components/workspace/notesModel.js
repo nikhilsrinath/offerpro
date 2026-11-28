@@ -93,6 +93,14 @@ export function checklistProgress(items) {
 }
 
 /** "Edited 2h ago" style stamp for a note. */
+/** "Created 20 Nov 2026": the day the note was made, always with its year. */
+export function createdText(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return '';
+    return 'Created ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export function editedText(ts, now = new Date()) {
     if (!ts) return '';
     const min = Math.floor((now - new Date(ts)) / 60000);

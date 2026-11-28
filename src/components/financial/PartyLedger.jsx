@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Scale, FilePlus, Receipt, HandCoins } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Scale, FilePlus, Receipt, HandCoins, Wallet } from 'lucide-react';
 import { Stat } from './financeUi';
 import { useSection, money } from './financeHooks';
 import CashEntryModal from './CashEntryModal';
 import ClientInvoicePanel from './ClientInvoicePanel';
 import { useInvoiceActions } from './invoiceActions';
 import { RecordMoneyCard } from './CashBook';
-import { blank } from './cashEntry';
+import { blank, PAID_TO } from './cashEntry';
 import { useT } from '../ui/edgeUtils';
 import { pickerFor } from '../../services/projectService';
 import { ProjectLedger } from '../projects/ProjectFinance';
@@ -68,16 +68,18 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
     return clients.filter((c) => ids.has(c.id));
   }, [projectId, project, clients, clientLinks]);
   const chosen = partyId === 'all' ? '' : partyId;
+  // Filtered to Miscellaneous or Internal Purpose (0118), not a client.
+  const chosenOther = chosen.startsWith('paid_to:') ? chosen.slice('paid_to:'.length) : '';
   // A new receipt is from the client filtered to; in a project, its client.
-  const forClient = chosen || (project || filterProject)?.client_id || '';
+  const forClient = (chosenOther ? '' : chosen) || (project || filterProject)?.client_id || '';
   // An invoice row's View Invoice, Edit, Cancel Invoice and Delete.
   const invoiceActions = useInvoiceActions({ projectId, clients: choices });
 
   const freshEntry = useCallback((direction) => ({
     ...blank(direction),
     ...(startOn ? { _picker: pickerFor(startOn) } : {}),
-    client_id: forClient,
-  }), [startOn, forClient]);
+    ...(chosenOther ? { client_id: '', paid_to: chosenOther } : { client_id: forClient }),
+  }), [startOn, forClient, chosenOther]);
 
   // Create/Upload Client Invoice asks which (ClientInvoicePanel); Record
   // Receipt is money in from the client.
@@ -94,8 +96,10 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
   const logs = useMemo(() => {
     const ids = projectId ? new Set(choices.map((c) => c.id)) : null;
     const mine = (e) => !!e.client_id && !e.vendor_id && (!ids || ids.has(e.client_id));
+    // Money in from no client (0118) is recorded here too.
+    const other = (e) => !e.client_id && !e.vendor_id && !!e.paid_to;
     return [
-      ...income.filter(mine).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
+      ...income.filter((e) => mine(e) || other(e)).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
       ...expenses.filter((e) => mine(e) && !e.employee_id).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
     ].sort((a, b) => String(b.day).localeCompare(String(a.day)));
   }, [income, expenses, projectId, choices]);
@@ -103,12 +107,13 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
   const toolbar = (
     <LedgerBar search={search} onSearch={setSearch} view={view} onView={setView} period={period}
       placeholder="Search client, invoice no., receipt no..."
-      views={[['due', 'Outstanding invoices'], ['gst', 'GST invoices']]}
+      views={[['due', 'Outstanding invoices'], ['gst', 'GST invoices'], ['other', 'Other money inward']]}
       selects={[
         !projectId && { label: 'Filter by project', value: projectFilter, onChange: setProjectFilter, options: projectChoices(projects, projectFilter) },
         {
           label: 'Filter by client', value: partyId, onChange: setPartyId,
-          options: [['all', 'All clients'], ...choices.filter((p) => !p.archived_at || p.id === partyId).map((p) => [p.id, p.name])],
+          options: [['all', 'All clients'], ['paid_to:misc', PAID_TO.misc], ['paid_to:internal', PAID_TO.internal],
+            ...choices.filter((p) => !p.archived_at || p.id === partyId).map((p) => [p.id, p.name])],
         },
       ].filter(Boolean)} />
   );
@@ -139,6 +144,9 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
           sub={view === 'due' ? 'Showing unpaid invoices only' : undefined} onClick={() => flip('due')} />
         <Stat icon={<Receipt size={15} />} label="GST on Invoices" value={money(totals?.tax || 0, 2)}
           sub={view === 'gst' ? 'Showing GST invoices only' : undefined} onClick={() => flip('gst')} />
+        {/* Miscellaneous and Internal Purpose credits: listed, not counted against what clients owe. */}
+        <Stat icon={<Wallet size={15} />} label="Other Money Inward" value={money(totals?.other || 0, 2)}
+          sub={view === 'other' ? 'Showing other money inward only' : undefined} onClick={() => flip('other')} />
       </div>
 
       {projectId

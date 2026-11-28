@@ -4,7 +4,7 @@ import { Btn, Seg, Field, Select, Modal, ConfirmBtn } from '../ui/edge';
 import { MONO, useT } from '../ui/edgeUtils';
 import { useToast } from '../shared/Toast';
 import { workspaceService } from '../../services/workspaceService';
-import { NOTE_COLORS, noteTone, toChecklist, toText, isBlank, cleanLabels, editedText, checkItem } from './notesModel';
+import { NOTE_COLORS, noteTone, toChecklist, toText, isBlank, cleanLabels, editedText, createdText, checkItem } from './notesModel';
 import { AutoTextarea, ChecklistEditor } from './NoteEditor';
 
 /* One note open in the side panel. Like Keep, there is no Save: closing the
@@ -87,7 +87,7 @@ export default function NotePanel({ note, onClose, projects = [], clients = [], 
     return (
         <Modal open onClose={finish} width={680}
             title={note.archived_at ? 'Archived note' : 'Note'}
-            note={editedText(note.updated_at)}
+            note={[createdText(note.created_at), editedText(note.updated_at)].filter(Boolean).join(' · ')}
             footer={(
                 <>
                     <ConfirmBtn size="md" label="Delete" confirmLabel="Delete" title="Delete note" message="The note is deleted." onConfirm={remove} />
@@ -157,7 +157,7 @@ export default function NotePanel({ note, onClose, projects = [], clients = [], 
             {projects.length > 0 && (
                 <>
                     {gap}
-                    <Field label="Project" hint="Optional, to keep the note with its work">
+                    <Field label="Project">
                         <Select value={f.project_id} onChange={set('project_id')}>
                             <option value="">None</option>
                             {projects.filter((p) => !p.archived_at || p.id === f.project_id).map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}
@@ -168,7 +168,7 @@ export default function NotePanel({ note, onClose, projects = [], clients = [], 
             {clients.length > 0 && (
                 <>
                     {gap}
-                    <Field label="Client" hint="Optional">
+                    <Field label="Client">
                         <Select value={f.client_id} onChange={set('client_id')}>
                             <option value="">None</option>
                             {clients.map((c) => <option key={c.id} value={c.id}>{c.name || c.company || 'Client'}</option>)}

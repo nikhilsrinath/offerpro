@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
     Panel, Row, Btn, Seg, Select, Input, Empty, Modal, StatBand, ConfirmBtn, Table,
 } from '../../ui/edge';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useT, MONO, fmtDate, tdStyle } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { useSection } from '../../financial/financeHooks';
@@ -129,6 +129,7 @@ export default function PaymentStatus({ project }) {
     const counts = Object.fromEntries(STATUSES.map((s) => [s.id, rows.filter((r) => r.status === s.id).length]));
     // 50 a page; a change of filter starts again at the first page.
     const [listPage, setListPage] = useState(0);
+    const [colSlot, setColSlot] = useState(null);   // where the table's Columns button sits, in the filter row
     const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
     const pageNo = Math.min(listPage, pages - 1);
     const pageRows = shown.slice(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE);
@@ -154,14 +155,6 @@ export default function PaymentStatus({ project }) {
     });
     const base = `payments-${(project.code || project.name || 'project').replace(/[^\w-]+/g, '-').toLowerCase()}`;
     const exportCsv = () => { const x = table(); downloadCsv(`${base}.csv`, x.header, x.rows); };
-    const exportXlsx = async () => {
-        const XLSX = await import('xlsx');
-        const x = table();
-        const sheet = XLSX.utils.aoa_to_sheet([x.header, ...x.rows]);
-        const book = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(book, sheet, 'Payments');
-        XLSX.writeFile(book, `${base}.xlsx`);
-    };
 
     if (!allowed) {
         return <Panel><Empty>Payments are visible to people who can see project financials and payments. Ask an owner or admin for access.</Empty></Panel>;
@@ -169,7 +162,7 @@ export default function PaymentStatus({ project }) {
     if (!scope) return null;
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             <StatBand items={[
                 { label: 'Total project value', value: money(totals.value), note: totals.invoiced ? `${money(totals.invoiced)} invoiced` : 'nothing invoiced yet' },
                 { label: 'Amount received', value: money(totals.received), tone: totals.received ? 'up' : undefined },
@@ -177,12 +170,13 @@ export default function PaymentStatus({ project }) {
                 { label: 'GST on invoices', value: money(totals.gst), note: `on ${rows.length} invoice${rows.length === 1 ? '' : 's'}` },
             ]} />
 
+            {/* The title and filters are one box; the table sits under it on its
+                own, as on the Client Directory, not inside it. */}
             <Panel title="Invoices & payments">
                 {rows.length === 0 ? (
                     <Empty>No invoices on this project yet. Invoices raised from the project’s Billing page, or allocated to it, show here with their payments.</Empty>
                 ) : (
-                    <>
-                        <Bar>
+                        <div style={{ padding: '10px 13px' }}><Row gap={8} wrap>
                             <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
                                 { id: '', label: 'All', count: rows.length },
                                 ...STATUSES.map((s) => ({ id: s.id, label: s.label, count: counts[s.id] })),
@@ -200,34 +194,33 @@ export default function PaymentStatus({ project }) {
                                 </Select>
                             )}
                             <Row gap={6} style={{ marginLeft: 'auto' }}>
-                                <Btn size="sm" onClick={exportCsv}>Export CSV</Btn>
-                                <Btn size="sm" onClick={exportXlsx}>Export Excel</Btn>
+                                <Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export</Btn>
+                                <span ref={setColSlot} style={{ display: 'inline-flex', alignItems: 'center' }} />
                             </Row>
-                        </Bar>
-                        {shown.length === 0 ? <Empty>No invoice matches these filters.</Empty> : (
-                            <div style={{ padding: 12 }}>
-                                {/* Header frozen (sticky), 50 a page, columns chosen with the Columns button. */}
-                                <Table id="project-payments" cols={COLS} sticky>
-                                    {(show, cols) => pageRows.map((r) => (
-                                        <InvoiceRow key={r.doc.id} r={r} money={money} files={files} project={project}
-                                            show={show} span={cols.length}
-                                            open={open === r.doc.id} onToggle={() => setOpen(open === r.doc.id ? null : r.doc.id)}
-                                            canPay={canPay} onPay={() => recordPayment(r)} onAttach={() => setAttaching(r)}
-                                            onView={() => invoiceActions.view(r.doc.id)} />
-                                    ))}
-                                </Table>
-                                {pages > 1 && (
-                                    <div className="fin-list-pager" role="navigation" aria-label="Pages">
-                                        <button type="button" className="prod-btn-ghost" disabled={pageNo === 0} onClick={() => setListPage(pageNo - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>
-                                        <span>{pageNo * PAGE_SIZE + 1}–{Math.min(shown.length, (pageNo + 1) * PAGE_SIZE)} of {shown.length} · Page {pageNo + 1} of {pages}</span>
-                                        <button type="button" className="prod-btn-ghost" disabled={pageNo >= pages - 1} onClick={() => setListPage(pageNo + 1)} aria-label="Next page"><ChevronRight size={14} /></button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </>
+                        </Row></div>
                 )}
             </Panel>
+            {rows.length > 0 && (shown.length === 0 ? <Panel><Empty>No invoice matches these filters.</Empty></Panel> : (
+                <div>
+                    {/* Header frozen (sticky), 50 a page, columns chosen with the Columns button. */}
+                    <Table id="project-payments" pickerIn={colSlot} pickerSize="sm" cols={COLS} sticky>
+                        {(show, cols) => pageRows.map((r) => (
+                            <InvoiceRow key={r.doc.id} r={r} money={money} files={files} project={project}
+                                show={show} span={cols.length}
+                                open={open === r.doc.id} onToggle={() => setOpen(open === r.doc.id ? null : r.doc.id)}
+                                canPay={canPay} onPay={() => recordPayment(r)} onAttach={() => setAttaching(r)}
+                                onView={() => invoiceActions.view(r.doc.id)} />
+                        ))}
+                    </Table>
+                    {pages > 1 && (
+                        <div className="fin-list-pager" role="navigation" aria-label="Pages">
+                            <button type="button" className="prod-btn-ghost" disabled={pageNo === 0} onClick={() => setListPage(pageNo - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>
+                            <span>{pageNo * PAGE_SIZE + 1}–{Math.min(shown.length, (pageNo + 1) * PAGE_SIZE)} of {shown.length} · Page {pageNo + 1} of {pages}</span>
+                            <button type="button" className="prod-btn-ghost" disabled={pageNo >= pages - 1} onClick={() => setListPage(pageNo + 1)} aria-label="Next page"><ChevronRight size={14} /></button>
+                        </div>
+                    )}
+                </div>
+            ))}
 
             {paying && <CashEntryModal entry={paying} party="client" projectId={project.id} onClose={() => setPaying(null)} />}
             {invoiceActions.dialogs}

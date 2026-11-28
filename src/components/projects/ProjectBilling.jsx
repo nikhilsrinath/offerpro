@@ -49,7 +49,7 @@ function BillingLists({ project, wanted, onKind }) {
     const kind = KINDS.some((k) => k.id === wanted) ? wanted : 'quotation';
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             <Row gap={12} wrap>
                 <Seg label="Kind of document" value={kind} onChange={onKind}
                     options={KINDS.map((k) => ({ id: k.id, label: k.label }))} />

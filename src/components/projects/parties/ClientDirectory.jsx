@@ -29,14 +29,19 @@ const SORTS = [
     { id: 'since', label: 'Client since' },
     { id: 'industry', label: 'Industry' },
 ];
+// The list's columns; Columns (beside Add Client) shows or hides the ones not always there.
 const LIST_COLS = [
-    { key: 'sn', label: 'S.No', width: 56 },
-    { key: 'client', label: 'Client' },
+    { key: 'sn', label: 'S.No', width: 56, always: true },
+    { key: 'client', label: 'Client', always: true },
     { key: 'contact', label: 'Contact' },
+    { key: 'email', label: 'Email', def: false },
+    { key: 'phone', label: 'Phone', def: false },
+    { key: 'address', label: 'Address', def: false },
     { key: 'industry', label: 'Industry' },
     { key: 'gstin', label: 'GSTIN' },
+    { key: 'since', label: 'Client Since', def: false },
     { key: 'status', label: 'Status' },
-    { key: 'act', label: '', width: 48, align: 'right' },
+    { key: 'act', label: '', width: 48, align: 'right', always: true },
 ];
 const ACTIVE = '#10b981';
 const INACTIVE = '#94a3b8';
@@ -50,6 +55,8 @@ export default function ClientDirectory({ project, onOpen }) {
     const [sort, setSort] = useState('name');
     // List (the default) or Grid; kept while moving between pages.
     const [view, setView] = useRememberedState('project-clients.view', 'list');
+    // Where the table's Columns button is drawn: the toolbar, beside Add Client.
+    const [colSlot, setColSlot] = useState(null);
     const [open, setOpen] = useState(null);       // client id
     const [editing, setEditing] = useState(null); // client | {} for new
     const [adding, setAdding] = useState(false);
@@ -88,7 +95,7 @@ export default function ClientDirectory({ project, onOpen }) {
                     backLabel="Client Directory" onBack={() => setHistory(null)}
                     onEdit={canEdit ? () => setEditing(history) : undefined} />
             ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {/* The same toolbar as Clients › Client Directory. */}
                 <div className="prod-toolbar" style={{ marginBottom: 0 }}>
                     <div className="prod-search">
@@ -111,8 +118,10 @@ export default function ClientDirectory({ project, onOpen }) {
                     <Seg size="sm" value={view} onChange={setView} label="View" options={[
                         { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
                     ]} />
+                    {/* The table's Columns button lands here, beside Add Client (as on Clients › Client Directory). */}
+                    <span ref={setColSlot} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }} />
                     {canCreate && (
-                        <button type="button" onClick={() => setAdding(true)} className="prod-add-btn">
+                        <button type="button" onClick={() => setAdding(true)} className="prod-add-btn" style={{ marginLeft: 0 }}>
                             <Plus size={15} /> Add Client
                         </button>
                     )}
@@ -133,9 +142,9 @@ export default function ClientDirectory({ project, onOpen }) {
                 ) : (
                     <>
                         {view === 'list' ? (
-                            <Table cols={LIST_COLS}>
-                                {shown.map((c, i) => (
-                                    <ClientRow key={c.id} client={c} index={i} canEdit={canEdit}
+                            <Table id="project-clients" pickerIn={colSlot} cols={LIST_COLS}>
+                                {(show) => shown.map((c, i) => (
+                                    <ClientRow key={c.id} client={c} index={i} canEdit={canEdit} show={show}
                                         onOpen={() => setOpen(c.id)} onEdit={() => setEditing(c)} onHistory={() => setHistory(c)} />
                                 ))}
                             </Table>
@@ -214,7 +223,7 @@ function ClientCard({ client: c, project, canEdit, onOpen, onEdit, onHistory }) 
     );
 }
 
-function ClientRow({ client: c, index, canEdit, onOpen, onEdit, onHistory }) {
+function ClientRow({ client: c, index, canEdit, show, onOpen, onEdit, onHistory }) {
     const t = useT();
     const contact = (c.contacts || []).find((x) => x.primary);
     const person = contact?.name || c.person_name;
@@ -223,26 +232,35 @@ function ClientRow({ client: c, index, canEdit, onOpen, onEdit, onHistory }) {
     const dash = <span style={{ color: t.ghost }}>-</span>;
     return (
         <Tr onClick={onOpen} label={`Open ${c.name}`}>
-            <Td muted nowrap>{index + 1}</Td>
-            <Td>
-                <Row gap={10} style={{ minWidth: 200, maxWidth: 320 }}>
+            {show('sn') && <Td muted nowrap>{index + 1}</Td>}
+            {show('client') && <Td>
+                {/* No upper width: the column takes the room the row has, so a
+                    long name shows whole; on a narrow screen it still clips, with the full name on hover. */}
+                <Row gap={10} style={{ minWidth: 200 }}>
                     <Logo path={c.logo_path} name={c.name} size={30} />
                     <span style={{ minWidth: 0, flex: 1 }}>
-                        <span style={{ ...clip, fontSize: 13, fontWeight: 500 }}>{c.name}</span>
-                        {c.address && <span style={{ ...clip, fontSize: 11.5, color: t.faint }}>{c.address}</span>}
+                        <span title={c.name} style={{ ...clip, fontSize: 13, fontWeight: 500 }}>{c.name}</span>
                     </span>
                 </Row>
-            </Td>
-            <Td muted>
-                <span style={{ ...clip, maxWidth: 240 }}>{person || reach || dash}</span>
-                {person && reach && <span style={{ ...clip, maxWidth: 240, fontSize: 11.5, color: t.faint }}>{reach}</span>}
-            </Td>
-            <Td muted nowrap>{c.industry || dash}</Td>
-            <Td muted nowrap>{c.gstin ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{c.gstin}</span> : dash}</Td>
-            <Td nowrap>
-                <Badge color={clientActive(c) ? ACTIVE : INACTIVE}>{CLIENT_STATUSES.find((s) => s.id === c.status)?.label || c.status || 'Active'}</Badge>
-            </Td>
-            <Td align="right">
+            </Td>}
+            {show('contact') && (
+                <Td muted>
+                    <span style={{ ...clip, maxWidth: 240 }}>{person || reach || dash}</span>
+                    {person && reach && <span style={{ ...clip, maxWidth: 240, fontSize: 11.5, color: t.faint }}>{reach}</span>}
+                </Td>
+            )}
+            {show('email') && <Td muted nowrap>{contact?.email || c.email || dash}</Td>}
+            {show('phone') && <Td muted nowrap>{contact?.phone || c.phone || dash}</Td>}
+            {show('address') && <Td muted><span style={{ ...clip, maxWidth: 280 }} title={c.address || undefined}>{c.address || dash}</span></Td>}
+            {show('industry') && <Td muted nowrap>{c.industry || dash}</Td>}
+            {show('gstin') && <Td muted nowrap>{c.gstin ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{c.gstin}</span> : dash}</Td>}
+            {show('since') && <Td muted nowrap>{c.client_since ? fmtDate(c.client_since) : dash}</Td>}
+            {show('status') && (
+                <Td nowrap>
+                    <Badge color={clientActive(c) ? ACTIVE : INACTIVE}>{CLIENT_STATUSES.find((s) => s.id === c.status)?.label || c.status || 'Active'}</Badge>
+                </Td>
+            )}
+            {show('act') && <Td align="right">
                 <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
                     <RowMenu label={`Actions for ${c.name}`} items={[
                         { label: 'Open', icon: Eye, onClick: onOpen },
@@ -250,7 +268,7 @@ function ClientRow({ client: c, index, canEdit, onOpen, onEdit, onHistory }) {
                         canEdit && { label: 'Edit', icon: Edit3, onClick: onEdit },
                     ]} />
                 </span>
-            </Td>
+            </Td>}
         </Tr>
     );
 }
@@ -290,7 +308,7 @@ function ClientSheet({ client: c, project, primary, link, canEdit, canRemove, on
                     {c.client_since && <div style={{ fontSize: 12, color: t.faint, marginTop: 4 }}>Client since {fmtDate(c.client_since)}</div>}
                 </div>
             </Row>
-            <Row gap={6} wrap style={{ marginBottom: 14 }}>
+            <Row gap={6} wrap style={{ marginBottom: 12 }}>
                 {onOpen && <Btn size="sm" onClick={() => { onClose(); onOpen('comms', { client: c.id }); }}>Communications</Btn>}
                 {onOpen && orgStore.can('payments', 'view') && orgStore.can('project_financials', 'view') && (
                     <Btn size="sm" onClick={() => { onClose(); onOpen('payments'); }}>Payments</Btn>
@@ -303,7 +321,7 @@ function ClientSheet({ client: c, project, primary, link, canEdit, canRemove, on
                 )}
             </Row>
 
-            <div style={{ display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+            <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
                 <section aria-label="Profile">
                     <Detail label="Primary contact">{c.person_name}</Detail>
                     <Detail label="Designation">{c.contact_designation}</Detail>

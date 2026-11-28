@@ -217,17 +217,6 @@ function FilesView({ project }) {
                             <React.Fragment key={c.id}><Sep /><Crumb onClick={() => setAt(c.id)} current={i === crumbs.length - 1}>{c.name}</Crumb></React.Fragment>
                         ))}
                     </nav>
-                    <Seg size="sm" value={view} onChange={setView} label="Layout" options={[{ id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' }]} />
-                    {can.create && at !== LINKED && <Btn size="sm" onClick={() => setDialog({ kind: 'folder', target: null })}>New folder</Btn>}
-                    {can.create && at !== LINKED && (
-                        <>
-                            <input ref={input} type="file" multiple hidden aria-label="Upload files" onChange={(e) => upload([...(e.target.files || [])])} />
-                            <input ref={dirInput} type="file" multiple hidden aria-label="Upload folder" webkitdirectory="" directory=""
-                                onChange={(e) => upload([...(e.target.files || [])])} />
-                            <Btn size="sm" disabled={busy === 'upload'} onClick={() => dirInput.current?.click()}>Upload folder</Btn>
-                            <Btn size="sm" primary disabled={busy === 'upload'} onClick={() => input.current?.click()}>{busy === 'upload' ? 'Uploading…' : 'Upload'}</Btn>
-                        </>
-                    )}
                 </div>
 
                 <Bar>
@@ -251,6 +240,19 @@ function FilesView({ project }) {
                     <Input type="date" aria-label="Modified from" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140, height: 29 }} />
                     <Input type="date" aria-label="Modified to" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} style={{ width: 140, height: 29 }} />
                     {searching && <Btn size="sm" onClick={() => { setQuery(''); setTag(''); setKind(''); setUploader(''); setFrom(''); setTo(''); }}>Clear</Btn>}
+                    {/* The layout and the actions share the filters' line, on the right. */}
+                    <span style={{ flex: 1 }} />
+                    <Seg size="sm" value={view} onChange={setView} label="Layout" options={[{ id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' }]} />
+                    {can.create && at !== LINKED && <Btn size="sm" onClick={() => setDialog({ kind: 'folder', target: null })}>New folder</Btn>}
+                    {can.create && at !== LINKED && (
+                        <>
+                            <input ref={input} type="file" multiple hidden aria-label="Upload files" onChange={(e) => upload([...(e.target.files || [])])} />
+                            <input ref={dirInput} type="file" multiple hidden aria-label="Upload folder" webkitdirectory="" directory=""
+                                onChange={(e) => upload([...(e.target.files || [])])} />
+                            <Btn size="sm" disabled={busy === 'upload'} onClick={() => dirInput.current?.click()}>Upload folder</Btn>
+                            <Btn size="sm" primary disabled={busy === 'upload'} onClick={() => input.current?.click()}>{busy === 'upload' ? 'Uploading…' : 'Upload'}</Btn>
+                        </>
+                    )}
                 </Bar>
 
                 {searching && <div style={{ padding: '8px 13px 0', fontSize: 12, color: t.faint }}>{sortedFiles.length} file{sortedFiles.length === 1 ? '' : 's'} across every folder</div>}
@@ -285,7 +287,7 @@ function FilesView({ project }) {
                         ))}
                     </div>
                 ) : (
-                    <div style={{ padding: 13 }}>
+                    <div style={{ padding: 12 }}>
                         <Table cols={[
                             { key: 'sno', label: 'S.No', width: 60 }, { key: 'n', label: 'Name' }, { key: 't', label: 'Type' }, { key: 's', label: 'Size', align: 'right' }, { key: 'u', label: 'Uploaded by' },
                             { key: 'c', label: 'Uploaded' }, { key: 'm', label: 'Last modified' }, { key: 'v', label: 'Version', align: 'right' },

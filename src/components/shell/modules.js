@@ -20,7 +20,7 @@ export const MODULES = [
     { id: 'team',      code: 'CMP', label: 'Company',   desc: 'Registry · hierarchy',  icon: Users,     defaultPage: 'company/employees/registry' },
     { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Library · letters · NDAs', icon: FileText,  defaultPage: 'documents/document-library/general-documents' },
     { id: 'today',     code: 'TDY', label: 'Today',     desc: 'What needs you today', icon: CalendarDays, defaultPage: 'today' },
-    { id: 'ai',        code: 'AI',  label: 'AI',        desc: 'Ask EdgeAI anything',  icon: MessageSquareText, defaultPage: 'ai/ask' },
+    { id: 'ai',        code: 'AI',  label: 'AI',        desc: 'Ask OpsteadAI anything',  icon: MessageSquareText, defaultPage: 'ai/ask' },
     // Each person's own calendar, to-dos and notes (0112), private to them.
     { id: 'workspace', code: 'WSP', label: 'Workspace', desc: 'Calendar · tasks · notes', icon: NotebookTabs, defaultPage: 'workspace/calendar' },
 ];

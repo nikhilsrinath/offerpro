@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye, Send, Loader, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Trash2, Search, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye, Send, Loader, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RowMenu } from './ui/edge';
 import { useStickyHead } from './ui/useStickyHead';
 import { storageService } from '../services/storageService';
@@ -207,7 +207,7 @@ export default function InternRecords() {
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8rem 2rem' }}>
         <div style={{ textAlign: 'center' }}>
           <div className="pro-spinner" />
-          <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: '15.5px' }}>Loading records...</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: '12.5px' }}>Loading records...</p>
         </div>
       </div>
     );
@@ -225,11 +225,11 @@ export default function InternRecords() {
             <button
               key={tab.id}
               role="tab" aria-selected={activeTab === tab.id}
-              className={`records-summary-card ${activeTab === tab.id ? 'active' : ''}`}
+              className={`records-summary-card stat-box ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
               style={{ '--card-color': cfg.color, '--card-bg': cfg.bgSolid }}
             >
-              <div className="records-summary-icon" style={{ background: cfg.bg, color: cfg.color }}>
+              <div className="records-summary-icon stat-box-icon">
                 <Icon size={18} />
               </div>
               <div className="records-summary-info">
@@ -241,54 +241,37 @@ export default function InternRecords() {
         })}
       </div>
 
-      <div className="records-toolbar">
-        <div className="records-toolbar-right">
-          <div className="records-search-wrap">
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="Search..."
-              aria-label="Search records"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pro-input"
-              style={{ paddingLeft: '2rem', height: '36px', fontSize: '14.5px' }}
-            />
-          </div>
-          <select
-            aria-label="Sort records"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={{
-              width: 'auto',
-              height: '36px', padding: '0 0.625rem',
-              borderRadius: '0.5rem',
-              border: '1px solid var(--border-default)',
-              background: 'var(--background)',
-              color: 'var(--text-secondary)',
-              fontSize: '14.3px', cursor: 'pointer', outline: 'none', flexShrink: 0,
-            }}
-          >
-            <option value="date_desc">Newest first</option>
-            <option value="date_asc">Oldest first</option>
-            <option value="title_asc">Title A–Z</option>
-            <option value="title_desc">Title Z–A</option>
-          </select>
-          <div className="records-toolbar-actions">
-            <div className="records-view-toggle">
-              <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="List view" aria-label="List view">
-                <List size={16} />
-              </button>
-              <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Grid view" aria-label="Grid view">
-                <LayoutGrid size={16} />
-              </button>
-            </div>
-            <button onClick={() => storageService.exportToCSV(records)} className="records-export-btn" disabled={records.length === 0}>
-              <FileSpreadsheet size={16} />
-              <span className="hide-mobile">Export</span>
-            </button>
-          </div>
+      {/* The shared toolbar (prod-toolbar), so Records reads like every other list page. */}
+      <div className="prod-toolbar" style={{ marginBottom: 0 }}>
+        <div className="prod-search">
+          <Search size={14} />
+          <input
+            type="text"
+            placeholder="Search..."
+            aria-label="Search records"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
+        <select aria-label="Sort records" className="prod-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="date_desc">Newest first</option>
+          <option value="date_asc">Oldest first</option>
+          <option value="title_asc">Title A–Z</option>
+          <option value="title_desc">Title Z–A</option>
+        </select>
+        <div className="records-view-toggle">
+          <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="List view" aria-label="List view">
+            <List size={15} />
+          </button>
+          <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Grid view" aria-label="Grid view">
+            <LayoutGrid size={15} />
+          </button>
+        </div>
+        {/* Export sits at the far right of the bar. */}
+        <button onClick={() => storageService.exportToCSV(records)} className="pro-chip" disabled={records.length === 0}
+          style={{ marginLeft: 'auto' }}>
+          <Download size={14} /> Export
+        </button>
       </div>
 
       {/* Content */}
@@ -406,7 +389,7 @@ export default function InternRecords() {
                       <Icon size={18} />
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <h4 style={{ fontSize: '16.5px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <h4 style={{ fontSize: '13.5px', fontWeight: 600, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {record.title}
                       </h4>
                       <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 600 }}>

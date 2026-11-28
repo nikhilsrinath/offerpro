@@ -137,9 +137,11 @@ export default function CertificateForm({ switcher }) {
     template: 'custom',
     orientation: CERTIFICATE_DEFAULTS.orientation,
     accentColor: CERTIFICATE_DEFAULTS.accentColor,
-    paperColor: CERTIFICATE_DEFAULTS.paperColor,
+    // A new certificate starts plain on white (no accent band); the accent and
+    // paper pickers still offer the rest.
+    paperColor: '#ffffff',
     art: null,          // an image of the person's own; none is the sample drawing
-    artHidden: false,   // the artwork band taken off the sheet altogether
+    artHidden: true,    // the artwork band taken off the sheet altogether
     showStamp: true,
     stampPosition: 'bottom-right',
     stampType: org.stamp_type || 'generated',

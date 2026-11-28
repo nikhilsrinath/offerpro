@@ -3,15 +3,22 @@ import StampPreview from '../StampPreview';
 import { buildAgreement } from '../../services/agreementModel';
 import { Editable } from '../shared/Editable';
 
-const BLOCK_CLASS = { para: 'nda-para', bold: 'nda-bold-para', italic: 'nda-italic-para', center: 'nda-center-bold', bullet: 'nda-bullet' };
+const BLOCK_CLASS = { para: 'nda-para', bold: 'nda-bold-para', italic: 'nda-italic-para', center: 'nda-center-bold', bullet: 'nda-bullet', line: 'nda-para' };
 
 function Block({ block }) {
+  // 'line': a line of an address block, with no space under it.
+  if (block.kind === 'line') return <div className={BLOCK_CLASS.line} style={{ margin: 0 }}>{block.text}</div>;
   const Tag = block.kind === 'bullet' || block.kind === 'center' ? 'div' : 'p';
   return <Tag className={BLOCK_CLASS[block.kind]}>{block.text}</Tag>;
 }
 
-export default function AgreementPreview({ formData }) {
-  const doc = buildAgreement(formData);
+/**
+ * A built agreement on the page. `build` turns the form into the document:
+ * an agreement by default, or another document of the same shape (the
+ * employee notice, noticeModel.buildNotice).
+ */
+export default function AgreementPreview({ formData, build = buildAgreement }) {
+  const doc = build(formData);
 
   const headerData = {
     companyLogo: formData.companyLogo,
@@ -25,7 +32,7 @@ export default function AgreementPreview({ formData }) {
   };
 
   return (
-    <div className="a4-sheet" data-edit-root>
+    <div className="a4-sheet offer-font" data-edit-root>
       <DocumentHeader formData={headerData} wrapLogo={(img) => (
         <Editable field="logoAdjust" label="Logo" value={formData.logoAdjust} origin="left top" style={{ display: 'inline-block' }}>{img}</Editable>
       )} />
@@ -41,11 +48,11 @@ export default function AgreementPreview({ formData }) {
         </div>
       ))}
 
-      {doc.closing && (
+      {doc.closing && (doc.closing.startsWith('IN WITNESS WHEREOF') ? (
         <p className="nda-para" style={{ marginTop: '2em' }}>
           <strong>IN WITNESS WHEREOF</strong>{doc.closing.slice('IN WITNESS WHEREOF'.length)}
         </p>
-      )}
+      ) : <p className="nda-para" style={{ marginTop: '2em' }}>{doc.closing}</p>)}
 
       {doc.signatories.length > 0 && (
         <div className="nda-sig-block">

@@ -14,6 +14,8 @@ import {
     titleFromFileName, READABLE_HINT,
 } from '../../services/libraryService';
 import { REGISTER_PATHS, OLD_REGISTER_PATHS, registerPath } from '../../shared/libraryReadability';
+import { useSection } from '../financial/financeHooks';
+import ProjectDocumentsView from './ProjectDocumentsView';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Document library: General Documents, Organisational Process Assets and
@@ -84,7 +86,10 @@ export default function DocumentLibrary() {
     const location = useLocation();
     const navigate = useNavigate();
     const collection = registerOfPath(location.pathname);
+    // Project Documents is not a register: it lists the projects' own files, read-only.
+    const onProjects = collection === 'project';
     const register = collectionOf(collection);
+    const projectFiles = useSection('project_files');
     const setCollection = (id) => {
         setCategory('all');
         navigate(registerPath(id), { replace: true });
@@ -181,7 +186,7 @@ export default function DocumentLibrary() {
     const onDrop = (e) => {
         e.preventDefault();
         setDragging(false);
-        if (canCreate) upload(e.dataTransfer.files);
+        if (canUpload) upload(e.dataTransfer.files);
     };
 
     // This register's documents; everything below the switch works on these.
@@ -191,6 +196,15 @@ export default function DocumentLibrary() {
         for (const d of docs || []) if (d.collection in c) c[d.collection] += 1;
         return c;
     }, [docs]);
+    // General Documents | Project Documents | Organisational Process Assets | Lessons Learned Register
+    const registers = [
+        COLLECTIONS[0],
+        { id: 'project', label: 'Project Documents' },
+        ...COLLECTIONS.slice(1),
+    ];
+    const countOf = (id) => (id === 'project' ? projectFiles.length : docs ? counts[id] : undefined);
+    // Files dropped or chosen go to a library register, never to the projects' list.
+    const canUpload = canCreate && !onProjects;
 
     const shown = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -229,12 +243,12 @@ export default function DocumentLibrary() {
     return (
         <Page>
             <div
-                onDragOver={(e) => { if (canCreate) { e.preventDefault(); setDragging(true); } }}
+                onDragOver={(e) => { if (canUpload) { e.preventDefault(); setDragging(true); } }}
                 onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
                 onDrop={onDrop}
                 style={{ position: 'relative', minHeight: '100%' }}
             >
-                <Toolbar right={canCreate && (
+                <Toolbar right={canUpload && (
                     <>
                         <input
                             ref={inputRef} type="file" multiple hidden
@@ -249,14 +263,15 @@ export default function DocumentLibrary() {
                     <div className="edge-scroll" style={{ maxWidth: '100%', overflowX: 'auto' }}>
                         <Seg
                             label="Register" value={collection} onChange={setCollection}
-                            options={COLLECTIONS.map((c) => ({
-                                id: c.id, label: c.label, count: docs ? counts[c.id] : undefined,
+                            options={registers.map((c) => ({
+                                id: c.id, label: c.label, count: countOf(c.id),
                             }))}
                         />
                     </div>
                 </Toolbar>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+                {onProjects ? <ProjectDocumentsView /> : (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
                     <Search value={query} onChange={setQuery} placeholder="Search names and inside documents…" width={280} />
                     {catOptions.length > 2 && (
                         <Seg value={category} onChange={setCategory} options={catOptions} size="sm" label="Category" />
@@ -276,7 +291,7 @@ export default function DocumentLibrary() {
                 )}
 
                 {loadError && (
-                    <div role="alert" style={{ marginBottom: 14, fontSize: 13, color: t.down }}>
+                    <div role="alert" style={{ marginBottom: 12, fontSize: 13, color: t.down }}>
                         {loadError}
                     </div>
                 )}
@@ -325,6 +340,7 @@ export default function DocumentLibrary() {
                         })}
                     </Table>
                 )}
+                </>)}
 
                 {dragging && (
                     <div aria-hidden="true" style={{
@@ -503,7 +519,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
                     {canDelete && (
                         <ConfirmBtn
                             label="Delete" title="Delete document"
-                            message={`Delete “${doc.title}”? The file and everything EdgeAI read from it are removed. This cannot be undone.`}
+                            message={`Delete “${doc.title}”? The file and everything OpsteadAI read from it are removed. This cannot be undone.`}
                             onConfirm={remove}
                         />
                     )}
@@ -538,14 +554,14 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
                                 onChange={(e) => setForm({ ...form, tags: e.target.value })} />
                         </Field>
                     </div>
-                    <Field label="Description" hint="What this document is for, EdgeAI reads this too" wide>
+                    <Field label="Description" hint="What this document is for, OpsteadAI reads this too" wide>
                         <Textarea rows={2} value={form.description} maxLength={2000} disabled={!canEdit}
                             onChange={(e) => setForm({ ...form, description: e.target.value })} />
                     </Field>
 
                     <section aria-labelledby="lib-ai-h" style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
                         <Row style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }} wrap>
-                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>What EdgeAI Read</h3>
+                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>What OpsteadAI Read</h3>
                             <Status tone={st.tone}>{st.label}</Status>
                             {doc.extraction_method && <Muted>via {METHOD[doc.extraction_method] || doc.extraction_method}</Muted>}
                             {doc.chunk_count > 0 && <Muted>{doc.chunk_count} passage{doc.chunk_count === 1 ? '' : 's'} · {(doc.char_count || 0).toLocaleString('en-IN')} characters</Muted>}

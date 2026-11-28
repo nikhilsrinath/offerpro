@@ -259,7 +259,7 @@ export default function DeadlineWatch({ onBack, theme = 'dark' }) {
             <AgentChat
                 agent={DEADLINE_AGENT.id} title={DEADLINE_AGENT.name} theme={theme}
                 intro="Ask about any deadline. Answers come from the same live records as the list, and nothing changes until you confirm it."
-                prompts={PROMPTS} placeholder="Ask about deadlines, or tell EdgeAI what to do"
+                prompts={PROMPTS} placeholder="Ask about deadlines, or tell OpsteadAI what to do"
             />
         </div>
     );
@@ -282,7 +282,7 @@ function Finding({ f, today, busy, onOpen, onAsk }) {
                 <span className="ag-item-d">{formatDateShort(f.due, today)}{f.amount !== null && f.amount !== undefined ? ` · ${formatMoney(f.amount, f.currency)}` : ''}</span>
                 {f.alerted_at && <span className="ag-item-d" title={`Last alerted ${new Date(f.alerted_at).toLocaleString('en-IN')}`}>Alerted {f.alerts}×</span>}
                 <span className="ag-item-btns">
-                    <button type="button" className="ag-mini" onClick={onAsk} disabled={busy} title="Ask EdgeAI about this">
+                    <button type="button" className="ag-mini" onClick={onAsk} disabled={busy} title="Ask OpsteadAI about this">
                         <Sparkles size={13} strokeWidth={2} aria-hidden="true" />Ask
                     </button>
                     <button type="button" className="ag-mini" onClick={onOpen}>Open<ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" /></button>

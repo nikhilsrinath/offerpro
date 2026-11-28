@@ -24,6 +24,7 @@ import { projectIdOf } from './projects/projectSlug';
 import { useFormProject, projectStartLines } from './projects/projectScope';
 import { baseCurrency, currencyLocale } from '../shared/currency.js';
 import { numberProjectFromPicker } from '../shared/finDocs.js';
+import { recordInvoiceReceipt } from './financial/invoiceReceiptEntry';
 
 
 
@@ -428,7 +429,9 @@ export default function InvoiceForm({ editDocId = null }) {
         number_project_id: numberProjectFromPicker(projectPicker),
         type: 'invoice',
         // An overdue invoice given a later due date is simply due again.
-        status: !editing ? (formData.isPaid ? 'paid' : 'sent')
+        // Paid is never just a label: a paid invoice gets its receipt below,
+        // and the payment on it is what makes it paid.
+        status: !editing ? 'sent'
           : editing.status === 'overdue' && formData.dueDate && formData.dueDate >= new Date().toISOString().slice(0, 10) ? 'sent'
             : editing.status,
         title: 'Tax Invoice',
@@ -513,6 +516,15 @@ export default function InvoiceForm({ editDocId = null }) {
         await saveSplitFromPicker('invoice', saved?.id, projectPicker);
       } catch (allocErr) {
         alert(`Invoice saved, but the project split was not: ${allocErr.message}`);
+      }
+      // Saved as Paid: the money is received, on the ledger as a receipt like
+      // Mark Paid's. Deleting that receipt makes the invoice unpaid again.
+      if (!editDocId && formData.isPaid) {
+        try {
+          await recordInvoiceReceipt(saved, { date: formData.invoiceDate });
+        } catch (payErr) {
+          alert(`Invoice saved, but it could not be marked paid: ${payErr.message}. Use Mark Paid on it in Billing.`);
+        }
       }
       await refreshUsage();
       // Opened from a ledger's Edit, saving goes back to that ledger.

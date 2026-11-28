@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Panel, Row, Btn, Seg, Select, Field, Input, Textarea, Table, Tr, Td, Avatar, Status,
-    Empty, Loading, Modal,
+    Empty, Loading, Modal, TableBar, TableTitle,
 } from '../../ui/edge';
 import { useT, MONO, fmtDate } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
@@ -164,7 +164,7 @@ function LegacyProjectAttendance({ project, onOpen }) {
     }
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             <Seg value={view} onChange={setView} label="Attendance view" options={[
                 { id: 'day', label: 'Day' },
                 { id: 'month', label: 'Month' },
@@ -514,28 +514,36 @@ function LeaveRequests({ people, team, requests, types, typeById, canDecide, org
     const canApplyForOthers = orgStore.can('leave_requests', 'create');
     const canApply = meOnTeam || canApplyForOthers;
 
+    const lead = (
+        <>
+            <TableTitle note="for the people on this project">Leave requests</TableTitle>
+            <Seg size="sm" value={tab} onChange={setTab} label="Requests" options={[
+                { id: 'pending', label: 'Pending', count: counts.pending },
+                { id: 'approved', label: 'Approved', count: counts.approved },
+                { id: 'rejected', label: 'Rejected', count: counts.rejected },
+            ]} />
+        </>
+    );
+    const applyBtn = canApply && <Btn primary onClick={() => setApplying(true)}>Apply for leave</Btn>;
+
     const act = async (id, fn, ok) => {
         setBusyId(id);
         try { await fn(); toast(ok, 'success'); onChanged(); } catch (e) { toast(teamError(e), 'error'); } finally { setBusyId(''); }
     };
 
     return (
-        <Panel title="Leave requests" note="for the people on this project"
-            actions={canApply && <Btn size="sm" primary onClick={() => setApplying(true)}>Apply for leave</Btn>}>
-            <div style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
-                <Seg size="sm" value={tab} onChange={setTab} label="Requests" options={[
-                    { id: 'pending', label: 'Pending', count: counts.pending },
-                    { id: 'approved', label: 'Approved', count: counts.approved },
-                    { id: 'rejected', label: 'Rejected', count: counts.rejected },
-                ]} />
-            </div>
+        <div>
             {shown.length === 0 ? (
-                <Empty action={tab === 'pending' && canApply && <Btn onClick={() => setApplying(true)}>Apply for leave</Btn>}>
-                    {tab === 'pending' ? 'Nothing is waiting for a decision.' : `No ${tab} requests over these dates.`}
-                </Empty>
+                <>
+                    <TableBar lead={lead} actions={applyBtn} />
+                    <Panel>
+                        <Empty action={tab === 'pending' && canApply && <Btn onClick={() => setApplying(true)}>Apply for leave</Btn>}>
+                            {tab === 'pending' ? 'Nothing is waiting for a decision.' : `No ${tab} requests over these dates.`}
+                        </Empty>
+                    </Panel>
+                </>
             ) : (
-                <div style={{ padding: 12 }}>
-                    <Table cols={[
+                    <Table lead={lead} actions={applyBtn} cols={[
                         { key: 'p', label: 'Member' }, { key: 'ty', label: 'Type' }, { key: 'd', label: 'Dates' },
                         { key: 'n', label: 'Days', align: 'right' }, { key: 'r', label: 'Reason' }, { key: 's', label: 'Status' },
                         { key: 'x', label: '', align: 'right' },
@@ -578,7 +586,6 @@ function LeaveRequests({ people, team, requests, types, typeById, canDecide, org
                             );
                         })}
                     </Table>
-                </div>
             )}
 
             {rejecting && (
@@ -601,7 +608,7 @@ function LeaveRequests({ people, team, requests, types, typeById, canDecide, org
                 <ApplyLeave orgId={orgId} people={people} team={team} types={types} requests={requests}
                     forOthers={canApplyForOthers} onClose={() => setApplying(false)} onDone={() => { setApplying(false); setTab('pending'); onChanged(); }} />
             )}
-        </Panel>
+        </div>
     );
 }
 

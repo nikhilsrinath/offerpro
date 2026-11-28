@@ -127,7 +127,8 @@ const FIXES = [
   [/\bpro[\s-]?forma\b/gi, 'proforma'],
   [/\bg\.?\s?s\.?\s?t\b\.?/gi, 'GST'],
   [/\b(?:op|ops|up)\s?stead\b/gi, 'Opstead'],
-  [/\bedge\s?a\.?\s?i\b/gi, 'EdgeAI'],
+  // The assistant was called EdgeAI before; either name reaches it.
+  [/\b(?:opstead|edge)\s?a\.?\s?i\b/gi, 'OpsteadAI'],
   [/\bin\s?voice(s?)\b/gi, 'invoice$1'],
   [/\bp\s?(?:&|and)\s?l\b/gi, 'P&L'],
   [/\bgst\s?in\b/gi, 'GSTIN'],

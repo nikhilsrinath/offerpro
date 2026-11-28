@@ -40,6 +40,7 @@ const EXACT = new Set([
     'opstead.calendar.hidden',     // calendars switched off
     'opstead.mytasks.sort',        // my tasks order
     'edgeos.ai.chats',             // AI conversations
+    'opstead.guides',              // page tips dismissed, or all turned off
 ]);
 const PREFIXES = [
     'edgeos.hub.layout.',          // dashboard widgets, per organization

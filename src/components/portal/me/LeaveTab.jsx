@@ -70,7 +70,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
   );
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
         {balances.length ? balances.map((b) => {
           const total = Number(b.quota) + Number(b.adjusted);
@@ -98,7 +98,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
         }) : <Empty>No leave types configured yet.</Empty>}
       </div>
 
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'minmax(280px, 0.9fr) minmax(0, 1.3fr)', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'minmax(280px, 0.9fr) minmax(0, 1.3fr)', alignItems: 'start' }}>
         <Panel title="Request leave">
           <form onSubmit={apply} style={{ padding: 14, display: 'grid', gap: 12 }}>
             <Field required label="Type">

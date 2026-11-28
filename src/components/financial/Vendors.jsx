@@ -25,6 +25,7 @@ const sectionHead = { marginTop: 16, marginBottom: 8, fontSize: 13, fontWeight: 
 // Every column the list can show; the Columns button picks among them, and
 // the choice is remembered on this device (ui/edge Table).
 const COLS = [
+  { key: 'sno', label: 'S.No', width: 56 },
   { key: 'vendor', label: 'Vendor', always: true },
   { key: 'belongs', label: 'Belongs to' },
   { key: 'contact', label: 'Contact' },
@@ -57,6 +58,8 @@ export default function Vendors() {
   const [viewing, setViewing] = useState(null);
   // List (the default) or Grid; kept while moving between pages.
   const [view, setView] = useRememberedState('vendors.view', 'list');
+  // Where the table puts its Columns button: in the toolbar, beside New Vendor.
+  const [colSlot, setColSlot] = useState(null);
 
   // Per-vendor totals from the bills and expenses that name them.
   const ledger = useMemo(() => {
@@ -144,7 +147,9 @@ export default function Vendors() {
         <Seg size="sm" value={view} onChange={setView} label="View" options={[
           { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
         ]} />
-        <button className="prod-add-btn" onClick={() => setEditing({})}>
+        {/* The table's Columns button lands here, beside New Vendor. */}
+        <span ref={setColSlot} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }} />
+        <button className="prod-add-btn" style={{ marginLeft: 0 }} onClick={() => setEditing({})}>
           <Plus size={15} /> New Vendor
         </button>
       </div>
@@ -199,17 +204,18 @@ export default function Vendors() {
           })}
         </Grid>
       ) : (
-        <Table id="vendors" cols={COLS}>
-          {(show) => filtered.map((v) => {
+        <Table id="vendors" pickerIn={colSlot} cols={COLS}>
+          {(show) => filtered.map((v, i) => {
             const l = ledger[v.id] || {};
             const onProjects = vendorProjectIds(v.id, links);
             const sub = { display: 'block', fontSize: 11.5, color: t.faint, marginTop: 2 };
             return (
               <Tr key={v.id} onClick={() => setViewing(v)} label={`Open ${v.company_name}`}>
+                {show('sno') && <Td muted nowrap>{i + 1}</Td>}
+                {/* The name only: Category and State are columns of their own. */}
                 {show('vendor') && (
                   <Td nowrap>
                     <span style={{ display: 'block', fontWeight: 600 }}>{v.company_name}</span>
-                    <span style={sub}>{v.category || 'Uncategorised'}{v.state ? ` · ${v.state}` : ''}</span>
                   </Td>
                 )}
                 {show('belongs') && (

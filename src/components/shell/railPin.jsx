@@ -45,22 +45,23 @@ export function useRailPin() {
 /* The control itself: pin the rail open, or close it again. It only shows
    while the rail is wide, since collapsed there is no room for it. And no
    need, the rail is already closed. */
-export function RailPinButton({ t, pinned, onToggle, visible }) {
+export function RailPinButton({ t, pinned, onToggle, visible = true }) {
     const Icon = pinned ? PanelLeftClose : PanelLeftOpen;
     return (
         <button
             type="button"
-            className="edge-navitem"
             onClick={onToggle}
             title={pinned ? 'Close sidebar' : 'Keep sidebar open'}
             aria-label={pinned ? 'Close sidebar' : 'Keep sidebar open'}
             aria-pressed={pinned}
             tabIndex={visible ? 0 : -1}
+            className="edge-navitem ri-ibtn"
             style={{
+                // The same 28px tile as the account buttons it sits beside in the rail's foot.
                 display: 'grid', placeItems: 'center', flexShrink: 0,
-                width: 28, height: 28, marginRight: -4, borderRadius: 7,
-                border: '1px solid transparent', background: 'transparent',
-                color: pinned ? t.text : t.faint, cursor: 'pointer',
+                width: 28, height: 28, borderRadius: 7,
+                border: '1px solid ' + t.line, background: t.panelAlt,
+                color: pinned ? t.text : t.dim, cursor: 'pointer',
                 fontFamily: MONO, padding: 0,
                 opacity: visible ? 1 : 0,
                 pointerEvents: visible ? 'auto' : 'none',

@@ -34,6 +34,13 @@ export const SECTION_PATHS = {
     raci: 'team/team-hierarchy',
     attendance: 'team/attendance',
     announcements: 'team/announcements',
+    // Social (0119)
+    social: 'social/overview',
+    'social-calendar': 'social/content-calendar',
+    'social-analytics': 'social/analytics',
+    'social-competitors': 'social/competitors',
+    'social-campaigns': 'social/campaigns',
+    'social-launches': 'social/launches',
     // Client
     'client-general': 'client/general-ledger',
     'client-ledger': 'client/general-ledger',

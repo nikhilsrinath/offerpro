@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Page, Toolbar, Panel, Row, Btn, Seg, Select, Table, Tr, Td, Empty, Muted, Field, Input } from '../ui/edge';
+import { Page, Toolbar, Panel, Row, Btn, Seg, Select, Table, Tr, Td, Empty, Muted, Input, TableTitle } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { useAuth } from '../../context/AuthContext';
 import { useSection, fmtDate } from '../financial/financeHooks';
@@ -85,10 +85,18 @@ export default function Timesheets() {
                 person ? <WeekGrid employeeId={person} projects={personProjects} entries={entries} />
                     : <Panel><Empty>Your login is not linked to an employee record, so there is no week of your own to fill. Choose a person above.</Empty></Panel>
             ) : (
-                <Panel title="Waiting for approval" note="Projects you manage">
-                    {queue.length === 0 ? <Empty>Nothing to approve.</Empty> : (
-                        <>
-                            <Table cols={[
+                queue.length === 0 ? (
+                    <Panel title="Waiting for approval" note="Projects you manage"><Empty>Nothing to approve.</Empty></Panel>
+                ) : (
+                            <Table lead={<TableTitle note="Projects you manage">Waiting for approval</TableTitle>} actions={(
+                                <>
+                                    <Btn onClick={() => setSelected(new Set(queue.map((e) => e.id)))}>Select all</Btn>
+                                    <Input aria-label="Note (optional)" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} style={{ width: 220 }} />
+                                    <Muted>{selected.size} selected</Muted>
+                                    <Btn disabled={!selected.size} onClick={() => decide('rejected')}>Reject</Btn>
+                                    <Btn primary disabled={!selected.size} onClick={() => decide('approved')}>Approve</Btn>
+                                </>
+                            )} cols={[
                                 { key: 'c', label: '', width: 36 }, { key: 'p', label: 'Person' }, { key: 'j', label: 'Project' },
                                 { key: 'd', label: 'Day' }, { key: 'h', label: 'Hours', align: 'right' }, { key: 'n', label: 'Note' },
                             ]}>
@@ -104,17 +112,7 @@ export default function Timesheets() {
                                     </Tr>
                                 ))}
                             </Table>
-                            <Row gap={8} wrap style={{ padding: 12 }}>
-                                <Btn size="sm" onClick={() => setSelected(new Set(queue.map((e) => e.id)))}>Select all</Btn>
-                                <div style={{ width: 260 }}><Field label="Note (optional)"><Input value={note} onChange={(e) => setNote(e.target.value)} /></Field></div>
-                                <div style={{ flex: 1 }} />
-                                <Muted>{selected.size} selected</Muted>
-                                <Btn disabled={!selected.size} onClick={() => decide('rejected')}>Reject</Btn>
-                                <Btn primary disabled={!selected.size} onClick={() => decide('approved')}>Approve</Btn>
-                            </Row>
-                        </>
-                    )}
-                </Panel>
+                )
             )}
             <p style={{ fontSize: 11.5, color: t.faint, marginTop: 10 }}>Nobody approves their own hours; approved hours are locked.</p>
         </Page>

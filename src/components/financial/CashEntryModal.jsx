@@ -19,9 +19,11 @@ import { projectLabel } from '../../services/projectAnalytics';
 import { money, useSection } from './financeHooks';
 import { titleCase } from '../../utils/titleCase';
 import {
-  ADVANCE, VENDOR_PAY, currencies, isForeign, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, invoicePickerOf, blank, sym,
+  ADVANCE, VENDOR_PAY, PAID_TO, currencies, isForeign, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, invoicePickerOf, blank, sym,
 } from './cashEntry';
 import { baseCurrency, currencySymbol } from '../../shared/currency.js';
+import { confirmDialog } from '../../services/confirm';
+import { monthName } from '../../shared/payroll';
 
 // The payroll categories, and who each is paid to. 'Salaries' is the legacy key (0038).
 const PAYROLL = { salaries: 'employee', Salaries: 'employee', intern_stipend: 'intern' };
@@ -73,6 +75,26 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
 
   const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
 
+  // The month a salary is for (pay_period, 0109): what the Payment tab's
+  // "For" shows. A description written as "Salary <month> · <name>" follows it.
+  const setPayMonth = (v) => setEditing((e) => {
+    const description = v && /^Salary .+? · /.test(e.description || '')
+      ? e.description.replace(/^Salary .+? · /, `Salary ${monthName(v)} · `) : e.description;
+    return { ...e, pay_period: v ? `${v}-01` : null, description };
+  });
+
+  // A click outside (or Esc) asks before throwing away what was typed, and
+  // always on Mark Paid, which opens already filled in from the invoice.
+  // Cancel asks the same.
+  const dirty = editing !== entry || !!entry.document_id;
+  const leave = async () => {
+    if (dirty && !(await confirmDialog({
+      title: 'Close without saving?', message: 'What you have entered will be lost.',
+      confirmLabel: 'Discard', cancelLabel: 'Keep editing',
+    }))) return;
+    onClose();
+  };
+
   // Salaries and stipends are paid to people, not vendors: "Paid to" offers
   // employees (interns for a stipend) and stores the choice as employee_id.
   // Someone who has left is still offered when the entry already names them.
@@ -108,7 +130,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
   const payFrom = (vendor) => {
     setPaidByVendor(vendor);
     setEditing((e) => (vendor
-      ? { ...e, client_id: '' }
+      ? { ...e, client_id: '', ...(e.paid_to !== undefined ? { paid_to: null } : {}) }
       : { ...e, ...('vendor_id' in e ? { vendor_id: '' } : {}) }));
   };
 
@@ -116,6 +138,26 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
   // switchable on an edit. Only the category says which.
   const vendorPay = editing?.direction === 'out' && VENDOR_PAY.has(editing.category);
   const isAdvance = vendorPay && editing.category === ADVANCE;
+  // Money out to no vendor (0117): Miscellaneous, or Internal Purpose (the
+  // company's own spend, at an event say). Offered on the Vendor ledger, and on
+  // any entry that already has one. "Paid to" holds them as 'paid_to:<key>'.
+  const paidToChoices = editing?.direction === 'out' && !editing?.purchase_invoice_id && !payroll && !vendorPay
+    && (party === 'vendor' || editing?.paid_to)
+    ? [{ value: 'paid_to:misc', label: `${PAID_TO.misc} (not a vendor)` }, { value: 'paid_to:internal', label: PAID_TO.internal }]
+    : [];
+  const paidToValue = editing?.paid_to && paidToChoices.length ? `paid_to:${editing.paid_to}` : editing?.vendor_id || '';
+  const setPaidTo = (v) => setEditing((e) => (String(v).startsWith('paid_to:')
+    ? { ...e, vendor_id: '', paid_to: v.slice('paid_to:'.length) }
+    : { ...e, vendor_id: v, ...(e.paid_to !== undefined ? { paid_to: null } : {}) }));
+  // Money in from no client (0118), the same two, offered on the Client ledger.
+  const fromChoices = editing?.direction === 'in' && !paidByVendor && (party === 'client' || editing?.paid_to)
+    ? [{ value: 'paid_to:misc', label: `${PAID_TO.misc} (not a client)` }, { value: 'paid_to:internal', label: PAID_TO.internal }]
+    : [];
+  const fromValue = editing?.paid_to && fromChoices.length ? `paid_to:${editing.paid_to}` : editing?.client_id || '';
+  const setFrom = (v) => setEditing((e) => (String(v).startsWith('paid_to:')
+    ? { ...e, client_id: '', paid_to: v.slice('paid_to:'.length) }
+    : { ...e, client_id: v, ...(e.paid_to !== undefined ? { paid_to: null } : {}) }));
+
   const setAdvance = (advance) => setEditing((e) => ({
     ...e,
     category: advance ? ADVANCE : 'vendor_bill_payment',
@@ -210,10 +252,10 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
     // The Vendor ledger keeps debits paid to a vendor or a person, so one with
     // neither would save and never show there.
     if (party === 'vendor' && editing.direction === 'out' && !payingBill && !editing.employee_id
-      && (payroll || !editing.vendor_id)) {
+      && (payroll || (!editing.vendor_id && !editing.paid_to))) {
       setFormError(payroll
         ? `Choose the ${payroll === 'intern' ? 'intern' : 'employee'} it was paid to.`
-        : 'Choose the vendor it was paid to, or a person under More Details.');
+        : `Choose who it was paid to: a vendor, ${PAID_TO.misc} or ${PAID_TO.internal}.`);
       return;
     }
     setSaving(true);
@@ -228,6 +270,17 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
     if (payingBill) Object.assign(data, { currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false });
     // A salary or stipend has a person, never a vendor.
     if (payroll) data.vendor_id = '';
+    // Miscellaneous / Internal Purpose is no vendor's (money out) and no
+    // client's (money in); a bill payment, a vendor payment, a salary or an
+    // invoice's receipt is never one of them.
+    if (data.paid_to) {
+      const out = editing.direction === 'out';
+      const taken = out ? payingBill || payroll || vendorPay || data.vendor_id
+        : payingInvoice || paidByVendor || data.client_id || data.vendor_id;
+      if (taken) data.paid_to = null;
+      else if (out) data.vendor_id = '';
+      else data.client_id = '';
+    }
     // A receipt of an invoice is in rupees and from its client; the invoice
     // already counts the sale and its GST, so this is cash in only.
     if (payingInvoice) Object.assign(data, { currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, client_id: payingInvoice.customer_id || data.client_id || '' });
@@ -292,7 +345,12 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
     } catch (err) {
       // An edit that would leave the entry worth less than its project split
       // is refused by the database (ALLOCATION_EXCEEDS_SOURCE).
-      setFormError(friendlyError(err).message || 'Could not save this entry.');
+      // Before 0117 the database has no paid_to column to save the choice in.
+      setFormError(/expenses_one_salary_per_month_idx/.test(String(err?.message || ''))
+        ? `This person is already paid for ${monthName(String(editing.pay_period || editing.date || '').slice(0, 7))}. Pick another month, or edit that payment.`
+        : /paid_to/.test(String(err?.message || ''))
+        ? `${PAID_TO.misc} and ${PAID_TO.internal} need database update ${editing.direction === 'in' ? '0118 (income paid_to)' : '0117 (expense paid_to)'}. Run it in Supabase, then save again.`
+        : friendlyError(err).message || 'Could not save this entry.');
     } finally {
       setSaving(false);
     }
@@ -364,9 +422,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
           : onType ? `Record a ${editing.direction === 'in' ? 'Credit' : 'Debit'}`
             : party === 'client' ? 'Money Coming In' : 'Record money'}
       onClose={onClose}
-      // A click outside (or Esc) asks before throwing away what was typed, and
-      // always on Mark Paid, which opens already filled in from the invoice.
-      dirty={editing !== entry || !!entry.document_id}
+      dirty={dirty}
     >
       <form onSubmit={handleSave} className="prod-modal-body cb-form">
         {formError && <div className="prod-form-error" role="alert">{formError}</div>}
@@ -467,8 +523,15 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
                   vendors={vendors.filter((v) => !v.archived_at || v.id === editing.vendor_id)}
                   onChange={(v) => set('vendor_id', v)} projectId={projectId} />
               ) : (
-                <ClientSelect id="cb-client" value={editing.client_id || ''} disabled={!!payingInvoice} noneLabel="Not recorded"
-                  clients={clients} onChange={(id) => set('client_id', id)} projectId={projectId} />
+                <ClientSelect id="cb-client" value={fromValue} disabled={!!payingInvoice} noneLabel="Not recorded"
+                  extra={payingInvoice ? [] : fromChoices}
+                  clients={clients} onChange={setFrom} projectId={projectId} />
+              )}
+              {!paidByVendor && !payingInvoice && fromChoices.length > 0 && editing.paid_to && (
+                <p className="prod-field-note">
+                  {editing.paid_to === 'internal' ? 'Money in for the company\'s own purpose.' : 'Money in from no client.'}
+                  {' '}Listed under Other Money Inward, not counted against what clients owe.
+                </p>
               )}
             </div>
           ) : payroll ? (
@@ -484,13 +547,25 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
                   {payroll === 'intern' ? 'No current interns in Team.' : 'No current employees in Team.'}
                 </p>
               )}
+              <label htmlFor="cb-pay-month" style={{ marginTop: 12 }}>{payroll === 'intern' ? 'Stipend for' : 'Salary for'}</label>
+              <input id="cb-pay-month" type="month"
+                value={String(editing.pay_period || editing.date || '').slice(0, 7)}
+                onChange={(e) => setPayMonth(e.target.value)} />
+              <p className="prod-field-note">The month this pays for. One {payroll === 'intern' ? 'stipend' : 'salary'} a month per person.</p>
             </div>
           ) : (
             <div className="prod-field full">
               <label htmlFor="cb-vendor">Paid to</label>
-              <VendorSelect id="cb-vendor" value={editing.vendor_id || ''} disabled={!!payingBill} noneLabel="Not a vendor"
+              <VendorSelect id="cb-vendor" value={paidToValue} disabled={!!payingBill}
+                noneLabel={party === 'vendor' && paidToChoices.length ? null : 'Not a vendor'} extra={paidToChoices}
                 vendors={vendors.filter((v) => !v.archived_at || v.id === editing.vendor_id)}
-                onChange={(v) => set('vendor_id', v)} projectId={projectId} />
+                onChange={setPaidTo} projectId={projectId} />
+              {editing.paid_to === 'internal' && paidToChoices.length > 0 && (
+                <p className="prod-field-note">The company's own spend, e.g. travel and costs at an event. Listed here, not counted against what vendors are owed.</p>
+              )}
+              {editing.paid_to === 'misc' && paidToChoices.length > 0 && (
+                <p className="prod-field-note">Paid to no vendor. Listed here, not counted against what vendors are owed.</p>
+              )}
             </div>
           )}
 
@@ -768,7 +843,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
         </details>
 
         <div className="prod-modal-foot">
-          <button type="button" className="prod-btn-ghost" onClick={() => onClose()}>Cancel</button>
+          <button type="button" className="prod-btn-ghost" onClick={leave}>Cancel</button>
           <button type="submit" className="prod-btn-primary" disabled={saving}>
             {saving ? 'Saving...' : editing.id ? 'Save changes' : payingBill ? 'Record payment' : editing.document_id ? 'Save' : 'Record entry'}
           </button>

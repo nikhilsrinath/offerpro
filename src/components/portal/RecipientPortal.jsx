@@ -677,7 +677,27 @@ export default function RecipientPortal({ documentId }) {
                   )}
 
                   {/* ── Termination Notice ── */}
-                  {docData.type === 'termination' && (
+                  {/* A notice written from the template (NoticeForm): shown as written. */}
+                  {docData.type === 'termination' && docData.notice?.clauses && (
+                    <div className="rp-doc-body">
+                      <h3 className="rp-doc-title" style={{ marginTop: 0 }}>{docData.notice.title}</h3>
+                      {[...(docData.notice.preamble || []), ...docData.notice.clauses.flatMap((c) => [
+                        ...(c.heading ? [{ kind: 'heading', text: c.heading }] : []), ...(c.blocks || []),
+                      ])].map((b, i) => (
+                        b.kind === 'heading' ? <h4 key={i} style={{ margin: '1.2em 0 0.4em', fontSize: '10.5pt' }}>{b.text}</h4>
+                          : b.kind === 'line' ? <div key={i}>{b.text}</div>
+                            : b.kind === 'bold' ? <p key={i} className="rp-doc-para"><strong>{b.text}</strong></p>
+                              : <p key={i} className="rp-doc-para">{b.text}</p>
+                      ))}
+                      <div className="rp-doc-signoff-block">
+                        <p className="rp-doc-sign-line">Sincerely,</p>
+                        <p><strong>{company.authorized_person || company.company_name || 'HR Department'}</strong></p>
+                        {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
+                        {company.signature_url && <img src={company.signature_url} alt="Authorized Signature" className="rp-doc-sig-img" />}
+                      </div>
+                    </div>
+                  )}
+                  {docData.type === 'termination' && !docData.notice?.clauses && (
                     <div className="rp-doc-body">
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1em', gap: '0.5em' }}>
                         <h3 className="rp-doc-title" style={{ margin: 0 }}>EMPLOYMENT TERMINATION NOTICE</h3>

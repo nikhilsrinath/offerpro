@@ -446,6 +446,9 @@ export default function OfferTracker() {
 
     return (
         <Page>
+            {/* The headline numbers first, then the filters right over the list they narrow. */}
+            <Pipeline docs={pool} />
+
             <Toolbar right={
                 tab === 'offers'
                     ? <Btn primary onClick={() => setShowCreate(true)}>New offer</Btn>
@@ -460,8 +463,6 @@ export default function OfferTracker() {
                     <option value="status">Status</option>
                 </Select>
             </Toolbar>
-
-            <Pipeline docs={pool} />
 
             {list.length === 0 ? (
                 <Panel>

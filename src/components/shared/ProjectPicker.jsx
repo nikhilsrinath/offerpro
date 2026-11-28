@@ -25,9 +25,7 @@ import { useSection, money } from '../financial/financeHooks';
 export default function ProjectPicker({ value, onChange, net = 0, clientId = null, label = 'Project', noneLabel = 'Others', note = '' }) {
     const id = useId();
     const projects = useSection('projects');
-    const clients = useSection('customers');
     const options = useMemo(() => pickerOrder(projects, clientId), [projects, clientId]);
-    const names = useMemo(() => Object.fromEntries(clients.map((c) => [c.id, c.name || c.clientName])), [clients]);
 
     if (!canAllocate() || !value) return null;
 
@@ -50,7 +48,8 @@ export default function ProjectPicker({ value, onChange, net = 0, clientId = nul
             <option value="">{split ? 'Choose a project…' : noneLabel}</option>
             {optionList(row.project_id).map((p) => (
                 <option key={p.id} value={p.id}>
-                    {projectLabel(p)}{p.client_id && names[p.client_id] ? ` · ${names[p.client_id]}` : ''}
+                    {/* The project alone: its client's name made the list hard to read. */}
+                    {projectLabel(p)}
                 </option>
             ))}
         </select>

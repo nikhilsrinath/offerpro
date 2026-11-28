@@ -19,9 +19,11 @@ const matches = (v, q) => [v.company_name, v.contact_name, v.gstin, v.category]
  * on the project too. The vendor already chosen stays listed either way.
  *
  * `noneLabel` adds a first option that clears the choice ("Not a vendor").
+ * `extra` adds options above the vendors that are not vendors
+ * ([{ value, label }], e.g. Miscellaneous): picking one calls onChange(value).
  * `aside(vendor)` puts a figure at the right of each vendor (what is pending).
  */
-export default function VendorSelect({ id, vendors, value, onChange, projectId = null, placeholder = 'Select a vendor…', noneLabel = null, disabled = false, aside = null }) {
+export default function VendorSelect({ id, vendors, value, onChange, projectId = null, placeholder = 'Select a vendor…', noneLabel = null, extra = [], disabled = false, aside = null }) {
     const toast = useToast();
     const links = useSection('project_vendors');
     const projects = useSection('projects');
@@ -60,7 +62,9 @@ export default function VendorSelect({ id, vendors, value, onChange, projectId =
     const others = onProject ? vendors.filter((v) => !onProject.has(v.id)) : [];
 
     const chosen = vendors.find((v) => v.id === value) || null;
+    const chosenExtra = extra.find((x) => x.value === value) || null;
     const q = query.trim().toLowerCase();
+    const extraShown = browsing ? [] : extra.filter((x) => !q || x.label.toLowerCase().includes(q));
     const list = browsing ? others : own;
     const shown = q ? list.filter((v) => matches(v, q)) : list;
 
@@ -89,7 +93,7 @@ export default function VendorSelect({ id, vendors, value, onChange, projectId =
         <div ref={boxRef} className="vsel" onKeyDown={onKeyDown}>
             <button ref={btnRef} id={id} type="button" className="vsel-btn" aria-haspopup="listbox" aria-expanded={open} disabled={disabled}
                 onClick={() => (open ? close() : setOpen(true))}>
-                <span className={chosen ? '' : 'vsel-placeholder'}>{chosen ? chosen.company_name : noneLabel || placeholder}</span>
+                <span className={chosen || chosenExtra ? '' : 'vsel-placeholder'}>{chosen ? chosen.company_name : chosenExtra ? chosenExtra.label : noneLabel || placeholder}</span>
                 <ChevronDown size={15} aria-hidden="true" />
             </button>
 
@@ -109,7 +113,14 @@ export default function VendorSelect({ id, vendors, value, onChange, projectId =
                                 {!value && <Check size={13} className="prodpick-item-check" aria-hidden="true" />}
                             </button>
                         )}
-                        {shown.length === 0 ? (
+                        {extraShown.map((x) => (
+                            <button key={x.value} type="button" role="option" aria-selected={x.value === value} className="prodpick-item vsel-item"
+                                onClick={() => { onChange(x.value); close(); btnRef.current?.focus(); }}>
+                                <span className="prodpick-item-main"><span className="prodpick-item-name">{x.label}</span></span>
+                                {x.value === value && <Check size={13} className="prodpick-item-check" aria-hidden="true" />}
+                            </button>
+                        ))}
+                        {shown.length === 0 && extraShown.length > 0 && q ? null : shown.length === 0 ? (
                             <div className="prodpick-empty">{emptyText}</div>
                         ) : (
                             <div className="prodpick-list" role="listbox" aria-label={browsing ? 'All vendors' : 'Vendors'}>

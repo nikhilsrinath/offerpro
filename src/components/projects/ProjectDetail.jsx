@@ -8,6 +8,7 @@ import { canSeeFinancials, health as fetchHealth } from '../../services/projectS
 import HealthChip from './HealthChip';
 import ProjectMilestones from './ProjectMilestones';
 import PageTabs from './PageTabs';
+import PageGuide from '../guide/PageGuide';
 import ProjectFinanceStatus, { ProjectProfitLoss } from './ProjectFinance';
 import ProjectBilling from './ProjectBilling';
 import PurchaseInvoices from '../financial/PurchaseInvoices';
@@ -32,6 +33,12 @@ import VendorDirectory from './parties/VendorDirectory';
 import Products from '../Products';
 import ProjectFiles from './docs/ProjectFiles';
 import ProjectTemplates from './docs/ProjectTemplates';
+import SocialOverview from './social/SocialOverview';
+import ContentCalendar from './social/ContentCalendar';
+import SocialAnalytics from './social/SocialAnalytics';
+import Competitors from './social/Competitors';
+import Campaigns from './social/Campaigns';
+import Launches from './social/Launches';
 import { orgStore } from '../../services/orgStore';
 import { projectSectionPath, parseProjectPath, legacyProjectPath, currentProjectPath, billingKindOf, documentsViewOf } from './projectPaths';
 import { findProject, projectSlug, withProjectRef } from './projectSlug';
@@ -41,6 +48,7 @@ import {
     FolderKanban, Briefcase, ListTree, SquareKanban, ChartGantt, PenTool,
     UsersRound, Network, CalendarCheck, Megaphone,
     Package, Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact, Kanban,
+    Share2, CalendarDays, ChartLine, Swords, Target, Rocket,
 } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -91,6 +99,14 @@ const TABS = [
     { id: 'raci', parent: 'tm', label: 'Team Hierarchy', icon: Network },
     { id: 'attendance', parent: 'tm', label: 'Attendance', icon: CalendarCheck },
     { id: 'announcements', parent: 'tm', label: 'Announcements', icon: Megaphone },
+    // Social (0119): the project's social media, campaigns and launches,
+    // between Team and Financials. A project can switch it off (social_enabled).
+    { id: 'social', parent: 'sm', label: 'Overview', icon: LayoutDashboard, social: true },
+    { id: 'social-calendar', parent: 'sm', label: 'Content Calendar', icon: CalendarDays, social: true },
+    { id: 'social-analytics', parent: 'sm', label: 'Analytics', icon: ChartLine, social: true },
+    { id: 'social-competitors', parent: 'sm', label: 'Competitors', icon: Swords, social: true },
+    { id: 'social-campaigns', parent: 'sm', label: 'Campaigns', icon: Target, social: true },
+    { id: 'social-launches', parent: 'sm', label: 'Launches', icon: Rocket, social: true },
     // Financials is folded under one Financials item in the rail (projectRail),
     // just above Documents. Financial Status keeps the id 'finance', so older
     // ?tab=finance links still land on it. The project's General Ledger page was
@@ -109,10 +125,12 @@ const TABS = [
     { id: 'activity', label: 'Activity', icon: History, hidden: true },
 ];
 
-// The sections this user may open, and which one the path names.
-export function projectSections() {
+// The sections this user may open in this project, and which one the path
+// names. Social's pages are left out of a project that has switched it off.
+export function projectSections(project) {
     const fin = canSeeFinancials();
-    return TABS.filter((x) => (!x.fin || fin) && (!x.pay || orgStore.can('payments', 'view')));
+    const social = project?.social_enabled !== false;
+    return TABS.filter((x) => (!x.fin || fin) && (!x.pay || orgStore.can('payments', 'view')) && (!x.social || social));
 }
 /** The page the path names; 'home' is the bare /projects/:id, which opens the Overview dashboard. */
 export function activeSection(pathname, sections = projectSections()) {
@@ -125,6 +143,7 @@ const GROUPS = {
     finance: { label: 'Financials', icon: Wallet },
     pm: { label: 'Planning', icon: FolderKanban },
     tm: { label: 'Team', icon: UsersRound },
+    sm: { label: 'Social', icon: Share2 },
     cm: { label: 'Client', icon: Handshake },
     vm: { label: 'Vendor', icon: Building2 },
     dm: { label: 'Documents', icon: FileText },
@@ -198,7 +217,7 @@ export default function ProjectDetail() {
     if (moved) return <Navigate to={moved + location.search} replace state={location.state} />;
     // A project opens on its Overview dashboard; the bare path, and any
     // path that names no page, lead there.
-    if (activeSection(location.pathname) === 'home') {
+    if (activeSection(location.pathname, projectSections(project)) === 'home') {
         return <Navigate to={projectSectionPath(project?.id || projectId) + location.search} replace state={location.state} />;
     }
     // Opened by its id (an older or server-written link): the URL shows its name.
@@ -242,7 +261,7 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
     }, [project.id, project.updated_at, project.status]);
 
     const fin = canSeeFinancials();
-    const sections = projectSections();
+    const sections = projectSections(project);
     const tab = activeSection(location.pathname, sections);
     const section = sections.find((x) => x.id === tab);
     // The choice in a page's own switcher (Billing's kind of document).
@@ -262,7 +281,11 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
     const closed = isClosed(project);
 
     const problems = location.state?.problems;
-    const name = project.name || project.code || 'Project';
+    // Over the page's name, the rail item it sits under (Client, Vendor…),
+    // leading to that item's first page; the project's name is in the top bar.
+    const groupFirst = section.parent ? sections.find((x) => x.parent === section.parent) : null;
+    const groupLabel = section.parent ? GROUPS[section.parent].label : 'Dashboard';
+    const groupTo = projectSectionPath(project.id, groupFirst ? groupFirst.id : undefined);
     const clientName = client ? (client.name || client.clientName) : null;
     const pad = isMobile ? 12 : 24;
 
@@ -273,12 +296,12 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                 display: 'flex', flexDirection: 'column',
             }}>
                 <div style={{
-                    padding: pad, display: 'grid', gap: isMobile ? 12 : 16, flex: 1, alignContent: 'start',
+                    padding: pad, display: 'grid', gap: 12, flex: 1, alignContent: 'start',
                     // One column that may shrink below its content, so a wide
                     // page always sees the real width and re-flows.
                     gridTemplateColumns: 'minmax(0, 1fr)',
                 }}>
-                    {/*: heading: the project over the section, with who and
+                    {/*: heading: the rail item over the section, with who and
                         where (code, state, client, manager) at the top right, */}
                     <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-start', gap: isMobile ? 10 : 16, flexWrap: 'wrap' }}>
                         <div style={{ flex: '1 1 260px', minWidth: 0 }}>
@@ -286,7 +309,7 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                                 fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 3,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>
-                                <Link to={projectSectionPath(project.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
+                                <Link to={groupTo} style={{ color: 'inherit', textDecoration: 'none' }}>{groupLabel}</Link>
                             </div>
                             <h1 style={{
                                 margin: 0, fontSize: isMobile ? 18 : 20, fontWeight: 600, fontFamily: MONO,
@@ -327,6 +350,8 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                             <PageTabs label={`${GROUPS[section.parent].label} pages`} current={tab} onOpen={openTab}
                                 pages={sections.filter((x) => x.parent === section.parent)} />
                         )}
+                        {/* The page's tip for people new to Opstead, until dismissed. */}
+                        <PageGuide id={'project:' + tab} style={{ marginBottom: 12 }} />
                         {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
                         {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}
                         {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
@@ -353,6 +378,12 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         {tab === 'documents' && <ProjectFiles project={project} view={documentsViewOf(view)} onView={openView} />}
                         {tab === 'templates' && <ProjectTemplates project={project} onOpen={openTab} />}
                         {tab === 'activity' && <ProjectActivity project={project} />}
+                        {tab === 'social' && <SocialOverview project={project} onOpen={openTab} />}
+                        {tab === 'social-calendar' && <ContentCalendar project={project} />}
+                        {tab === 'social-analytics' && <SocialAnalytics project={project} />}
+                        {tab === 'social-competitors' && <Competitors project={project} />}
+                        {tab === 'social-campaigns' && <Campaigns project={project} />}
+                        {tab === 'social-launches' && <Launches project={project} />}
                     </div>
                 </div>
             </div>

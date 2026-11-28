@@ -153,7 +153,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
             </Card>
 
             <Card title="Collection health" note="receivables as of today">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
                     <button type="button" className="ov-plain" aria-label="Collected share: open detail" onClick={() => open({ kind: 'metric', id: 'collected' })} style={plainBtn}>
                         <Gauge value={model.collectionRate} label="Collected" size={150} color={cat[2]} />
                     </button>

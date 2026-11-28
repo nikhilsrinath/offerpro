@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Panel, Row, Btn, Seg, Select, Table, Tr, Td, Empty, Avatar, Modal, Field, Input, Grid, ConfirmBtn, Status,
-    Search, StatBand,
+    Search, StatBand, Muted, TableBar,
 } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { useSection, fmtDate } from '../financial/financeHooks';
@@ -47,7 +47,6 @@ const roleText = (m) => m.role_title || MEMBER_ROLES.find((r) => r.id === m.role
 const ROLE_ORDER = Object.fromEntries(MEMBER_ROLES.map((r, i) => [r.id, i]));
 
 export default function ProjectTeam({ project }) {
-    const t = useT();
     const toast = useToast();
     const { people, locked } = useProjectPeople(project);
     const [show, setShow] = useState('current');
@@ -129,7 +128,7 @@ export default function ProjectTeam({ project }) {
     };
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
             {people.length > 0 && (
                 <StatBand items={[
                     { label: 'On the team', value: counts.current, note: counts.upcoming ? `${counts.upcoming} starting later` : 'today' },
@@ -138,56 +137,60 @@ export default function ProjectTeam({ project }) {
                 ]} />
             )}
 
-            <Panel title="Team members" note={locked ? 'Locked while the project is closed' : undefined}
-                actions={canAdd && <Btn size="sm" primary onClick={() => setAdding(true)}>Add a person</Btn>}>
-                {people.length === 0 ? (
+            {people.length === 0 ? (
+                <Panel>
                     <Empty action={canAdd && <Btn primary onClick={() => setAdding(true)}>Add the first person</Btn>}>
                         No one is on this project yet. People added here get a column on the RACI matrix,
                         a row on the attendance grid, and the project's announcements.
                     </Empty>
-                ) : (
+                </Panel>
+            ) : (() => {
+                // One line over the table: the filters, then Columns and Add a person.
+                const filters = (
                     <>
-                        <div style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
-                            <Row gap={8} wrap>
-                                <Search value={query} onChange={setQuery} placeholder="Search name, email, department" width={260} />
-                                <Seg size="sm" value={show} onChange={setShow} label="Status" options={STATUS_FILTERS} />
-                                <Select aria-label="Filter by project role" value={role} onChange={(e) => setRole(e.target.value)} style={{ width: 140, height: 29 }}>
-                                    <option value="">All roles</option>
-                                    {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                                </Select>
-                                <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 150, height: 29 }}>
-                                    {SORTS.map((s) => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
-                                </Select>
-                            </Row>
-                        </div>
-                        {rows.length === 0 ? (
-                            <Empty action={filtered && <Btn onClick={clear}>Clear filters</Btn>}>
-                                No one matches these filters.
-                            </Empty>
-                        ) : (
-                            <div style={{ padding: 12 }}>
-                                <Table id="project-team" cols={[
-                                    { key: 'p', label: 'Person', always: true }, { key: 'em', label: 'Email', def: false },
-                                    { key: 'ph', label: 'Phone', def: false }, { key: 'd', label: 'Designation' },
-                                    { key: 'dep', label: 'Department' }, { key: 'lo', label: 'Location', def: false },
-                                    { key: 'r', label: 'Project role' },
-                                    { key: 'a', label: 'Time on project' }, { key: 'add', label: 'Added' },
-                                    { key: 'end', label: 'Ends', def: false },
-                                    { key: 's', label: 'Status' },
-                                    ...(showHours ? [{ key: 'h', label: 'Logged / planned h', align: 'right' }] : []),
-
-                                    { key: 'x', label: '', align: 'right', always: true },
-                                ]}>
-                                    {(shows) => rows.map((p) => (
-                                        <MemberRow key={p.id} p={p} today={today} load={load} hours={hours} showHours={showHours}
-                                            onDetails={() => setDetails(p.id)} show={shows} />
-                                    ))}
-                                </Table>
-                            </div>
-                        )}
+                        <Search value={query} onChange={setQuery} placeholder="Search name, email, department" width={260} />
+                        <Seg value={show} onChange={setShow} label="Status" options={STATUS_FILTERS} />
+                        <Select aria-label="Filter by project role" value={role} onChange={(e) => setRole(e.target.value)} style={{ width: 140 }}>
+                            <option value="">All roles</option>
+                            {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                        </Select>
+                        <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 150 }}>
+                            {SORTS.map((x) => <option key={x.id} value={x.id}>Sort: {x.label}</option>)}
+                        </Select>
+                        {locked && <Muted>Locked while the project is closed</Muted>}
                     </>
-                )}
-            </Panel>
+                );
+                const addBtn = canAdd && <Btn primary onClick={() => setAdding(true)}>Add a person</Btn>;
+                if (rows.length === 0) {
+                    return (
+                        <div>
+                            <TableBar lead={filters} actions={addBtn} />
+                            <Panel>
+                                <Empty action={filtered && <Btn onClick={clear}>Clear filters</Btn>}>No one matches these filters.</Empty>
+                            </Panel>
+                        </div>
+                    );
+                }
+                return (
+                    <Table id="project-team" pinEnd lead={filters} actions={addBtn} cols={[
+                        { key: 'p', label: 'Person', always: true }, { key: 'em', label: 'Email', def: false },
+                        { key: 'ph', label: 'Phone', def: false }, { key: 'd', label: 'Designation' },
+                        { key: 'dep', label: 'Department' }, { key: 'lo', label: 'Location', def: false },
+                        { key: 'r', label: 'Project role' },
+                        { key: 'a', label: 'Time on project' }, { key: 'add', label: 'Added' },
+                        { key: 'end', label: 'Ends', def: false },
+                        { key: 's', label: 'Status' },
+                        ...(showHours ? [{ key: 'h', label: 'Logged / planned h', align: 'right' }] : []),
+
+                        { key: 'x', label: '', align: 'right', always: true },
+                    ]}>
+                        {(shows) => rows.map((p) => (
+                            <MemberRow key={p.id} p={p} today={today} load={load} hours={hours} showHours={showHours}
+                                onDetails={() => setDetails(p.id)} show={shows} />
+                        ))}
+                    </Table>
+                );
+            })()}
             {adding && <AddMember project={project} onClose={() => setAdding(false)}
                 onTeam={new Set(people.filter((p) => p.status !== 'inactive').map((p) => p.id))} />}
             {details && people.some((p) => p.id === details) && (
@@ -372,7 +375,7 @@ function MemberDetails({ project, p, today, canEdit, canAdd, canDelete, run, onR
                 <Btn onClick={onClose}>Cancel</Btn>
                 <Btn primary disabled={saving || !dirty || !canSave} onClick={save}>{saving ? 'Saving…' : 'Save'}</Btn>
             </>}>
-            <Row gap={10} style={{ marginBottom: 14 }}>
+            <Row gap={10} style={{ marginBottom: 12 }}>
                 <Avatar name={p.name} size={34} />
                 <span style={{ minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 13.5, color: t.text }}>{p.designation || 'No job title'}</span>

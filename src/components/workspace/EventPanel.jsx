@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Btn, Seg, Field, Input, Select, Textarea, Modal, ConfirmBtn } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { useToast } from '../shared/Toast';
+import ProjectSelect from '../shared/ProjectSelect';
 import { workspaceService } from '../../services/workspaceService';
 import { REPEATS, blankEvent, eventToForm, formToEvent, addDays, daysBetween, localDay } from './calendarModel';
 import { EVENT_COLORS, eventColor } from './workspaceTheme';
@@ -45,7 +46,9 @@ export default function EventPanel({ orgId, event = null, start = null, onClose,
         return next;
     });
 
-    const pickable = useMemo(() => projects.filter((p) => !p.archived_at || p.id === form.project_id), [projects, form.project_id]);
+    // By name, A to Z: the list reads as names, so they come first.
+    const pickable = useMemo(() => projects.filter((p) => !p.archived_at || p.id === form.project_id)
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))), [projects, form.project_id]);
 
     const save = async () => {
         const { row, error: err } = formToEvent(form);
@@ -160,10 +163,8 @@ export default function EventPanel({ orgId, event = null, start = null, onClose,
                     <>
                         {gap}
                         <Field label="Project" hint="Optional, to keep the event with its work">
-                            <Select value={form.project_id} onChange={set('project_id')}>
-                                <option value="">None</option>
-                                {pickable.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}
-                            </Select>
+                            {/* Names on the left, codes in a column on the right. */}
+                            <ProjectSelect id="ev-project" projects={pickable} value={form.project_id || ''} onChange={set('project_id')} />
                         </Field>
                     </>
                 )}

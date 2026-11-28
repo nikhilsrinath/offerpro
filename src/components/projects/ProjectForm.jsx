@@ -89,6 +89,8 @@ export default function ProjectForm({ project = null, onDone }) {
         status: project?.status || 'planned',
         tags: project?.tags || [], // no longer asked for; kept so an edit does not clear them
         cost_method: project?.cost_method || 'allocation',
+        // 0119: undefined until known (a new project, or a database without it), so it is only sent when set.
+        social_enabled: project?.social_enabled,
         source_quotation_id: project?.source_quotation_id || prefill?.source_quotation_id || null,
         source_client_stage: project?.source_client_stage || prefill?.source_client_stage || null,
     }));
@@ -190,6 +192,11 @@ export default function ProjectForm({ project = null, onDone }) {
                 <div style={{ height: 13 }} />
                 <Field label="Description" >
                     <Textarea rows={3} value={form.description} onChange={set('description')} />
+                </Field>
+                <div style={{ height: 13 }} />
+                <Field label="Social" hint="The project's content calendar, campaigns and launches. Hide it for a project with no social media work.">
+                    <Seg value={form.social_enabled === false ? 'off' : 'on'} onChange={(v) => set('social_enabled')(v === 'on')} label="Social"
+                        options={[{ id: 'on', label: 'Show' }, { id: 'off', label: 'Hide' }]} />
                 </Field>
                 <div style={{ height: 13 }} />
                 <Grid min={180} gap={12}>

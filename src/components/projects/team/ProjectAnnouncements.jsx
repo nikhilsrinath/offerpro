@@ -173,7 +173,7 @@ export default function ProjectAnnouncements({ project }) {
     }
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             <Row gap={8} wrap>
                 <Seg size="sm" value={show} onChange={setShow} label="Show" options={[
                     { id: 'board', label: 'Current' },

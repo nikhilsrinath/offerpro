@@ -94,6 +94,12 @@ export function spreadVendorPayment(bills, amount) {
 }
 
 // Money paid to a vendor before their bill (0093).
+/**
+ * Who a debit with no vendor was paid to (0117), offered at the top of
+ * "Paid to" on the Vendor ledger. Listed there, never counted against payables.
+ */
+export const PAID_TO = { misc: 'Miscellaneous', internal: 'Internal Purpose' };
+
 export const ADVANCE = 'vendor_advance';
 
 // A debit to a vendor: a payment or an advance. It is one entry, never laid

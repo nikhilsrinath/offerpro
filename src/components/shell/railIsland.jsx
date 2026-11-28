@@ -57,21 +57,21 @@ export function RailHead({ children, pin }) {
     );
 }
 
-/** The Opstead mark on its teal tile, and the name while open. */
-export function RailBrand({ t, open, to = '/dashboard/overview' }) {
+/** The Opstead logo, centred over the rail while open; the triangle alone when shut. */
+export function RailBrand({ open, to = '/dashboard/overview' }) {
     return (
         <Link to={to} aria-label="Opstead dashboard" title="Dashboard" style={{
-            display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
-            textDecoration: 'none', color: t.text,
+            display: 'flex', alignItems: 'center', minWidth: 0, flex: 1, textDecoration: 'none',
+            // The head pads 13px left and 8px right; the 5px back puts the logo in the rail's middle.
+            justifyContent: open ? 'center' : 'flex-start', marginLeft: open ? -5 : 0,
         }}>
-            {/* The Opstead mark (red triangle); the wordmark shows when the rail is open.
-                The rail is navy in both themes, so the wordmark is the white cut. */}
-            <img src="/opstead-mark-48.png" alt="" aria-hidden="true"
-                style={{ width: 24, height: 24, flexShrink: 0, display: 'block' }} />
-            <img src="/opstead-wordmark-white.png" alt="" aria-hidden="true" style={{
-                height: 16, width: 'auto', flexShrink: 0, display: 'block',
-                opacity: open ? 1 : 0, transition: 'opacity .16s',
-            }} />
+            {open ? (
+                <img src="/opstead-logo-rail.png" alt="Opstead"
+                    style={{ height: 26, width: 'auto', maxWidth: '100%', display: 'block', objectFit: 'contain' }} />
+            ) : (
+                <img src="/opstead-mark-rail.png" alt="Opstead"
+                    style={{ width: 26, height: 26, flexShrink: 0, display: 'block' }} />
+            )}
         </Link>
     );
 }

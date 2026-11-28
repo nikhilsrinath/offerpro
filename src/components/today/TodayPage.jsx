@@ -168,11 +168,11 @@ export default function TodayPage() {
     const activity = model.activity.slice(0, ACTIVITY_MAX);
 
     return (
-        <div className="td-page" style={{ fontFamily: MONO, color: t.text, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="td-page" style={{ fontFamily: MONO, color: t.text, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* ── header: the day ──────────────────────────────────────── */}
             {/* As on Dashboard → Overview: the greeting small on top, the
                 company name under it, the date in a chip on the right. */}
-            <header style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '2px 2px 0' }}>
+            <header className="td-hero" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '2px 2px 0' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                     <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500, color: t.faint }}>{greeting(now)}</p>
                     <h2 style={{
@@ -274,14 +274,14 @@ export default function TodayPage() {
                         ))}
                     </Section>
 
-                    <Section title="Ask EdgeAI" label="Ask EdgeAI about your company">
+                    <Section title="Ask OpsteadAI" label="Ask OpsteadAI about your company">
                         <form onSubmit={(e) => { e.preventDefault(); ask(q); }} style={{ padding: `12px ${PAD_X}px 6px` }}>
                             <div className="td-ask" style={{
                                 display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 4px 0 10px', borderRadius: 8,
                                 background: t.card, border: '1px solid ' + t.lineStrong,
                             }}>
                                 <Sparkles aria-hidden="true" size={14} style={{ color: t.accent, flexShrink: 0 }} />
-                                <label htmlFor="td-ask" style={SR_ONLY}>Ask EdgeAI about your company</label>
+                                <label htmlFor="td-ask" style={SR_ONLY}>Ask OpsteadAI about your company</label>
                                 <input id="td-ask" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off"
                                     placeholder="Ask about your company…"
                                     style={{ flex: 1, minWidth: 0, height: '100%', background: 'none', border: 'none', outline: 'none', fontFamily: MONO, fontSize: 12.5, color: t.text }} />

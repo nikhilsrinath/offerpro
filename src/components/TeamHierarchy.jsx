@@ -546,7 +546,7 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
   return (
     <div style={{ fontFamily: MONO, padding: 12 }}>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
         paddingBottom: 12, borderBottom: '1px solid ' + t.lineSoft,
       }}>
         <div style={{ flex: 1 }}>

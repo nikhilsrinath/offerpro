@@ -321,7 +321,7 @@ export default function EmployeePortal() {
             flex: 1, minHeight: 0, overflowY: 'auto', background: t.shell,
             padding: mobile ? '14px 12px 84px' : '22px 24px 40px',
           }}>
-            <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: 16 }}>
+            <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: 12 }}>
               {/* Above every tab, not inside one: a person still on a password
                   their admin generated should meet this first. */}
               {me.portal_must_change_password && (

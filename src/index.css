@@ -2660,6 +2660,22 @@ h3 {
   color: var(--text-primary);
 }
 
+/* The loading screen: the Opstead mark, breathing gently. */
+.app-loading-mark {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 1.25rem;
+  animation: opstead-breathe 1.6s ease-in-out infinite;
+}
+@keyframes opstead-breathe {
+  0%, 100% { transform: scale(0.9); opacity: 0.55; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-loading-mark { animation: none; }
+}
+
 .app-loading-spinner {
   width: 40px;
   height: 40px;
@@ -6224,8 +6240,14 @@ label {
    OFFER LETTER PREVIEW
    =========================== */
 
-.a4-sheet.offer-preview {
+.a4-sheet.offer-preview,
+/* The agreement templates (NDA, MoU, Partnership, Custom) are set in the offer
+   letter's typeface too (pdfService draws their PDFs in Helvetica to match). */
+.a4-sheet.offer-font {
   font-family: 'Helvetica', 'Arial', sans-serif;
+}
+
+.a4-sheet.offer-preview {
   padding: 50px 83px 80px;
 }
 
@@ -15447,6 +15469,23 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
   background: var(--edge-panel, #fff) !important;
   border: 1px solid var(--stat-line) !important;
   color: var(--brand-teal-btn) !important;
+}
+/* Records' seven type tabs are stat boxes; the chosen one keeps the hover
+   look (a step darker, teal edge) so it reads as selected. */
+/* The per-type coloured strip along the top gives way to the teal edge. */
+.records-tab-row .records-summary-card.stat-box::before { display: none; }
+.records-tab-row .records-summary-card.stat-box.active {
+  background: var(--stat-bg-hover) !important;
+  border-color: var(--brand-teal-btn) !important;
+}
+/* Finance Status cards: the card's name sits at the top, beside its icon. */
+.pro-stat-card .pro-stat-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--edge-text, var(--text-primary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Announcement audience: the members picked by name (announcementFields.jsx). */

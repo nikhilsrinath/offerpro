@@ -13,7 +13,7 @@
 // button per person, one click, no dialog. The dialog is only for the details
 // (times and a note) that not every row needs. Statuses are shown as words
 // and counts, not colours.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSection } from '../financial/financeHooks';
 import { useToast } from '../shared/Toast';
 import { orgStore } from '../../services/orgStore';
@@ -116,7 +116,13 @@ export default function AttendanceSheet({ people, isOn, scope = 'company' } = {}
     const [monthRows, setMonthRows] = useState({});
     const [teamMonth, setTeamMonth] = useState([]);
     const [dayList, setDayList] = useState(null);
-    const [loading, setLoading] = useState(true);
+    // What the sheets on screen were loaded for (a day; a person's or the
+    // team's month). Switching Daily ⇄ Monthly shows what is already loaded at
+    // once and refreshes it quietly; only a day or month not loaded yet waits.
+    const [dayFor, setDayFor] = useState(null);
+    const [monthFor, setMonthFor] = useState(null);
+    const wantDay = useRef(null);
+    const wantMonth = useRef(null);
     const [busyId, setBusyId] = useState('');
     const [editing, setEditing] = useState(null);
     const [exporting, setExporting] = useState(false);
@@ -136,32 +142,41 @@ export default function AttendanceSheet({ people, isOn, scope = 'company' } = {}
 
     const loadDay = useCallback(async () => {
         if (!orgId) return;
-        setLoading(true);
+        wantDay.current = date;
         try {
-            setDayRows(await attendanceService.listDay(orgId, date));
+            const rows = await attendanceService.listDay(orgId, date);
+            // A day picked since then wins over this answer.
+            if (wantDay.current !== date) return;
+            setDayRows(rows);
+            setDayFor(date);
         } catch (err) {
             toast(err.message || 'Could not load the day.', 'error');
-        } finally {
-            setLoading(false);
         }
     }, [orgId, date, toast]);
 
     // No one picked is the whole team's month; a person is their calendar.
+    const monthId = `${personId || 'team'}|${monthKey}`;
     const loadMonth = useCallback(async () => {
         if (!orgId) return;
-        setLoading(true);
+        const id = `${personId || 'team'}|${monthKey}`;
+        wantMonth.current = id;
         try {
-            if (personId) setMonthRows(await attendanceService.listMonth(orgId, personId, monthKey));
-            else setTeamMonth(await attendanceService.listMonthForOrg(orgId, monthKey));
+            const rows = personId
+                ? await attendanceService.listMonth(orgId, personId, monthKey)
+                : await attendanceService.listMonthForOrg(orgId, monthKey);
+            if (wantMonth.current !== id) return;
+            if (personId) setMonthRows(rows); else setTeamMonth(rows);
+            setMonthFor(id);
         } catch (err) {
             toast(err.message || 'Could not load the month.', 'error');
-        } finally {
-            setLoading(false);
         }
     }, [orgId, personId, monthKey, toast]);
 
-    useEffect(() => { if (tab === 'daily') loadDay(); }, [tab, loadDay]);
-    useEffect(() => { if (tab === 'monthly') loadMonth(); }, [tab, loadMonth]);
+    // Both sheets are loaded whichever is open, so switching between them
+    // does not wait on the server; each refreshes when it is opened.
+    useEffect(() => { loadDay(); }, [tab, loadDay]);
+    useEffect(() => { loadMonth(); }, [tab, loadMonth]);
+    const loading = tab === 'daily' ? dayFor !== date : monthFor !== monthId;
 
     const setStatus = async (employeeId, status) => {
         setBusyId(employeeId);
@@ -255,8 +270,40 @@ export default function AttendanceSheet({ people, isOn, scope = 'company' } = {}
 
     const isToday = date === todayKey();
 
+    // The month's headline numbers, shown over the filters: one person's
+    // month, or the whole team's in person-days.
+    const monthStats = useMemo(() => {
+        if (personId) {
+            const counts = countBuckets(Object.values(monthRows || {}));
+            return [
+                ...BUCKETS.map((b) => ({ label: b.label, value: counts[b.key] })),
+                { label: 'Hours logged', value: formatDuration(summariseMonth(monthRows).workedMinutes) },
+            ];
+        }
+        const onRoster = new Set(roster.map((e) => e.id));
+        const totals = countBuckets(teamMonth.filter((r) => onRoster.has(r.employee_id)));
+        return BUCKETS.map((b) => ({ label: `${b.label} · person-days`, value: totals[b.key] }));
+    }, [personId, monthRows, teamMonth, roster]);
+
     return (
         <Page>
+            {/* The headline numbers first, then the filters right over the sheet they narrow. */}
+            {tab === 'daily' ? (
+                <>
+                    <Row gap={10} style={{ marginBottom: 12 }}>
+                        <span style={{ fontSize: 13.5, color: t.text }}>{fmtDate(date)}</span>
+                        <Muted>{dayRoster.length} on the roster</Muted>
+                    </Row>
+
+                    <StatBand items={[
+                        ...BUCKETS.map((b) => ({ label: b.label, value: dayTotals[b.key] })),
+                        { label: 'Not marked', value: dayTotals.unmarked },
+                    ]} />
+                </>
+            ) : !loading && (personId || roster.length > 0) && (
+                <StatBand items={monthStats} />
+            )}
+
             <Toolbar right={
                 tab === 'daily'
                     ? (
@@ -318,16 +365,6 @@ export default function AttendanceSheet({ people, isOn, scope = 'company' } = {}
 
             {tab === 'daily' ? (
                 <>
-                    <Row gap={10} style={{ marginBottom: 12 }}>
-                        <span style={{ fontSize: 13.5, color: t.text }}>{fmtDate(date)}</span>
-                        <Muted>{dayRoster.length} on the roster</Muted>
-                    </Row>
-
-                    <StatBand items={[
-                        ...BUCKETS.map((b) => ({ label: b.label, value: dayTotals[b.key] })),
-                        { label: 'Not marked', value: dayTotals.unmarked },
-                    ]} />
-
                     {loading ? <Loading /> : dayRoster.length === 0 ? (
                         <Panel><Empty>{inProject
                             ? 'No one is on the project on this day. Add people on Team Members.'
@@ -471,8 +508,6 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, sheetOn, on
     const { days } = monthBounds(monthKey);
     // getDay() is Sunday-0; the grid starts on Monday, so rotate it.
     const firstDow = (new Date(`${monthKey}-01T00:00:00`).getDay() + 6) % 7;
-    const summary = summariseMonth(rows);
-    const counts = countBuckets(Object.values(rows || {}));
 
     const cells = [];
     for (let i = 0; i < firstDow; i += 1) cells.push(null);
@@ -484,11 +519,6 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, sheetOn, on
 
     return (
         <>
-            <StatBand items={[
-                ...BUCKETS.map((b) => ({ label: b.label, value: counts[b.key] })),
-                { label: 'Hours logged', value: formatDuration(summary.workedMinutes) },
-            ]} />
-
             <Panel title={person?.name || person?.full_name || 'Calendar'} note={monthLabel(monthKey)} pad={13}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 5 }}>
                     {WEEKDAYS.map((w) => (
@@ -550,7 +580,6 @@ function TeamMonthView({ t, monthKey, rows, loading, roster, onPick, inProject }
         rows.filter((r) => onRoster.has(r.employee_id)).forEach((r) => { (out[r.work_date] ||= []).push(r); });
         return out;
     }, [rows, roster]);
-    const totals = countBuckets(Object.values(byDay).flat());
 
     const cells = [];
     for (let i = 0; i < firstDow; i += 1) cells.push(null);
@@ -563,8 +592,6 @@ function TeamMonthView({ t, monthKey, rows, loading, roster, onPick, inProject }
 
     return (
         <>
-            <StatBand items={BUCKETS.map((b) => ({ label: `${b.label} · person-days`, value: totals[b.key] }))} />
-
             <Panel title={inProject ? 'Project team' : 'Whole team'} note={`${monthLabel(monthKey)} · ${roster.length} on the roster · click a day to see who`} pad={13}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 5 }}>
                     {WEEKDAYS.map((w) => (

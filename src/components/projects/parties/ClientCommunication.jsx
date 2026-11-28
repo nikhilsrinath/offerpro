@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-    Panel, Row, Btn, Seg, Select, Field, Input, Textarea, Empty, Modal, ConfirmBtn, RowMenu, Table, Tr, Td, Muted,
+    Panel, Row, Btn, Seg, Select, Field, Input, Textarea, Empty, Modal, ConfirmBtn, RowMenu, Table, Tr, Td, Muted, TableBar,
 } from '../../ui/edge';
 import { useT, fmtDate } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
@@ -122,7 +122,7 @@ export default function ClientCommunication({ project }) {
 
     return (
         <SetupGate setup={setup} what="client communication">
-            <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gap: 12 }}>
                 <Row gap={8} wrap>
                     <Seg value={view} onChange={setView} label="View" options={[
                         { id: 'general', label: 'General' },
@@ -267,6 +267,12 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
     const [status, setStatus] = useState('');
     const [deleting, setDeleting] = useState(null);
     const shown = rows.filter((r) => !status || r.status === status);
+    const statusPick = (
+        <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
+            { id: '', label: 'All', count: rows.length },
+            ...APPROVAL_STATUSES.map((s) => ({ id: s.id, label: s.label, count: rows.filter((r) => r.status === s.id).length })),
+        ]} />
+    );
     const setStatusOf = async (r, next) => {
         try {
             await orgStore.updateItem('client_approvals', r.id, {
@@ -276,20 +282,18 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
         } catch (e) { toast(fileError(e), 'error'); }
     };
     return (
-        <Panel>
-            <Bar>
-                <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
-                    { id: '', label: 'All', count: rows.length },
-                    ...APPROVAL_STATUSES.map((s) => ({ id: s.id, label: s.label, count: rows.filter((r) => r.status === s.id).length })),
-                ]} />
-            </Bar>
+        <div>
             {shown.length === 0 ? (
-                <Empty action={!rows.length && can.create && <Btn primary onClick={onAdd}>Send something for approval</Btn>}>
-                    {rows.length ? 'Nothing with this status.' : 'Nothing sent for approval yet. Track designs, documents, milestones and quotes the client has to sign off.'}
-                </Empty>
+                <>
+                    <TableBar lead={statusPick} />
+                    <Panel>
+                        <Empty action={!rows.length && can.create && <Btn primary onClick={onAdd}>Send something for approval</Btn>}>
+                            {rows.length ? 'Nothing with this status.' : 'Nothing sent for approval yet. Track designs, documents, milestones and quotes the client has to sign off.'}
+                        </Empty>
+                    </Panel>
+                </>
             ) : (
-                <div style={{ padding: 12 }}>
-                    <Table cols={[
+                    <Table lead={statusPick} cols={[
                         { key: 'i', label: 'Item' }, { key: 's', label: 'Sent' }, { key: 'b', label: 'Sent by' },
                         { key: 'st', label: 'Status' }, { key: 'r', label: 'Description' }, { key: 'd', label: 'Response' },
                         { key: 'x', label: '', align: 'right' },
@@ -332,9 +336,8 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
                             );
                         })}
                     </Table>
-                </div>
             )}
-            <div style={{ padding: '0 13px 12px' }}><Legend label="Approval statuses" items={APPROVAL_STATUSES} /></div>
+            <div style={{ padding: '12px 2px 0' }}><Legend label="Approval statuses" items={APPROVAL_STATUSES} /></div>
             {deleting && (
                 <Modal open onClose={() => setDeleting(null)} width={420} title="Delete this approval?"
                     footer={<><Btn onClick={() => setDeleting(null)}>Cancel</Btn><Btn primary onClick={() => { const r = deleting; setDeleting(null); onDelete(r); }}>Delete</Btn></>}>
@@ -342,7 +345,7 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
                 </Modal>
             )}
 
-        </Panel>
+        </div>
     );
 }
 

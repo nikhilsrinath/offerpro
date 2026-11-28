@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { Plus, Search as SearchIcon } from 'lucide-react';
 import useRememberedState from '../../../hooks/useRememberedState';
 import {
-    Panel, Row, Btn, Seg, Search, Select, Field, Input, Empty, Modal, ConfirmBtn, Grid, Muted,
+    Panel, Row, Btn, Seg, Select, Field, Input, Empty, Modal, ConfirmBtn, Grid, Muted,
     Table, Tr, Td,
 } from '../../ui/edge';
 import { useT, fmtDate } from '../../ui/edgeUtils';
@@ -12,7 +13,7 @@ import { uploadProjectFile, fileError } from '../../../services/projectFiles';
 import { fmtMoney } from '../../../services/projectWorkspace';
 import { useProjectVendors, useSetup, todayIso } from './partyData';
 import { projectLabel } from '../../../services/projectAnalytics';
-import { SetupGate, Badge, Logo, Detail, AttachedFiles, Bar } from './partyUi';
+import { SetupGate, Badge, Logo, Detail, AttachedFiles } from './partyUi';
 import VendorFormDialog from '../../shared/VendorFormDialog';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -32,12 +33,21 @@ const SORTS = [
     { id: 'contract', label: 'Contract end' },
     { id: 'value', label: 'Contract value' },
 ];
+// The list's columns; Columns (beside Add Vendor) shows or hides the ones not always there.
 const LIST_COLS = [
-    { key: 'vendor', label: 'Vendor' },
+    { key: 'sn', label: 'S.No', width: 56, always: true },
+    { key: 'vendor', label: 'Vendor', always: true },
+    { key: 'category', label: 'Category', def: false },
     { key: 'contact', label: 'Contact' },
+    { key: 'email', label: 'Email', def: false },
+    { key: 'phone', label: 'Phone', def: false },
+    { key: 'address', label: 'Address', def: false },
+    { key: 'gstin', label: 'GSTIN', def: false },
     { key: 'status', label: 'Status' },
-    { key: 'contract', label: 'Contract end' },
-    { key: 'value', label: 'Contract value', align: 'right' },
+    { key: 'start', label: 'Contract Start', def: false },
+    { key: 'contract', label: 'Contract End' },
+    { key: 'terms', label: 'Payment Terms', def: false },
+    { key: 'value', label: 'Contract Value', align: 'right' },
 ];
 const maskAccount = (n) => (n ? `•••• ${String(n).slice(-4)}` : '');
 
@@ -50,6 +60,8 @@ export default function VendorDirectory({ project }) {
     const [sort, setSort] = useState('name');
     // List (the default) or Grid; kept while moving between pages.
     const [view, setView] = useRememberedState('project-vendors.view', 'list');
+    // Where the table's Columns button is drawn: the toolbar, beside Add Vendor.
+    const [colSlot, setColSlot] = useState(null);
     const [open, setOpen] = useState(null);
     const [editing, setEditing] = useState(null);
     const [adding, setAdding] = useState(false);
@@ -82,51 +94,65 @@ export default function VendorDirectory({ project }) {
 
     return (
         <SetupGate setup={setup} what="the vendor directory">
-            <Panel title="Vendors" note={`${vendors.length} on this project`}
-                actions={canCreate && <Btn size="sm" primary onClick={() => setAdding(true)}>Add vendor</Btn>}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* One toolbar line, the same as the project's Client Directory. */}
+                <div className="prod-toolbar" style={{ marginBottom: 0 }}>
+                    <div className="prod-search">
+                        <SearchIcon size={14} />
+                        <input aria-label="Search vendors" type="text" placeholder="Search vendors..."
+                            value={query} onChange={(e) => setQuery(e.target.value)} />
+                    </div>
+                    <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
+                        { id: 'all', label: 'All' }, { id: 'active', label: 'Active' }, { id: 'inactive', label: 'Inactive' },
+                    ]} />
+                    {categories.length > 0 && (
+                        <Select aria-label="Filter by category" value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: 160 }}>
+                            <option value="">Every category</option>
+                            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </Select>
+                    )}
+                    <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 160 }}>
+                        {SORTS.map((s) => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
+                    </Select>
+                    <Seg size="sm" value={view} onChange={setView} label="Layout" options={[
+                        { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
+                    ]} />
+                    {/* The table's Columns button lands here, beside Add Vendor. */}
+                    <span ref={setColSlot} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }} />
+                    {canCreate && (
+                        <button type="button" onClick={() => setAdding(true)} className="prod-add-btn" style={{ marginLeft: 0 }}>
+                            <Plus size={15} /> Add Vendor
+                        </button>
+                    )}
+                </div>
+
                 {vendors.length === 0 ? (
-                    <Empty action={canCreate && <Btn primary onClick={() => setAdding(true)}>Add the first vendor</Btn>}>
-                        No vendors on this project yet. Add the suppliers and contractors working on it. Their contacts, contract and documents stay here.
-                    </Empty>
+                    <Panel>
+                        <Empty action={canCreate && <Btn primary onClick={() => setAdding(true)}>Add the first vendor</Btn>}>
+                            No vendors on this project yet. Add the suppliers and contractors working on it. Their contacts, contract and documents stay here.
+                        </Empty>
+                    </Panel>
+                ) : shown.length === 0 ? (
+                    <Panel>
+                        <Empty action={filtered && <Btn onClick={() => { setQuery(''); setCategory(''); setStatus('all'); }}>Clear filters</Btn>}>No vendor matches these filters.</Empty>
+                    </Panel>
                 ) : (
                     <>
-                        <Bar>
-                            <Search value={query} onChange={setQuery} placeholder="Search vendors" width={220} />
-                            <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
-                                { id: 'all', label: 'All' }, { id: 'active', label: 'Active' }, { id: 'inactive', label: 'Inactive' },
-                            ]} />
-                            {categories.length > 0 && (
-                                <Select aria-label="Filter by category" value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: 170, height: 29 }}>
-                                    <option value="">Every category</option>
-                                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                                </Select>
-                            )}
-                            <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 170, height: 29 }}>
-                                {SORTS.map((s) => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
-                            </Select>
-                            <div style={{ flex: 1 }} />
-                            <Seg size="sm" value={view} onChange={setView} label="Layout" options={[
-                                { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
-                            ]} />
-                        </Bar>
-                        {shown.length === 0 ? (
-                            <Empty action={filtered && <Btn onClick={() => { setQuery(''); setCategory(''); setStatus('all'); }}>Clear filters</Btn>}>No vendor matches these filters.</Empty>
-                        ) : view === 'list' ? (
-                            <div style={{ padding: 12 }}>
-                                <Table cols={LIST_COLS}>
-                                    {shown.map((v) => <VendorRow key={v.id} vendor={v} currency={project.currency} onOpen={() => setOpen(v.id)} />)}
-                                </Table>
-                            </div>
+                        {view === 'list' ? (
+                            <Table id="project-vendors" pickerIn={colSlot} cols={LIST_COLS}>
+                                {(show) => shown.map((v, i) => <VendorRow key={v.id} vendor={v} index={i} currency={project.currency} show={show} onOpen={() => setOpen(v.id)} />)}
+                            </Table>
                         ) : (
-                            <div style={{ padding: 12 }}>
-                                <Grid min={260} gap={10}>
-                                    {shown.map((v) => <VendorCard key={v.id} vendor={v} currency={project.currency} onOpen={() => setOpen(v.id)} />)}
-                                </Grid>
-                            </div>
+                            <Grid min={260} gap={10}>
+                                {shown.map((v) => <VendorCard key={v.id} vendor={v} currency={project.currency} onOpen={() => setOpen(v.id)} />)}
+                            </Grid>
                         )}
+                        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                            Showing {shown.length} of {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
+                        </div>
                     </>
                 )}
-            </Panel>
+            </div>
 
             {current && (
                 <VendorSheet vendor={current} project={project} canEdit={canEdit} canRemove={canRemove}
@@ -169,7 +195,7 @@ function VendorCard({ vendor: v, currency, onOpen }) {
     );
 }
 
-function VendorRow({ vendor: v, currency, onOpen }) {
+function VendorRow({ vendor: v, index, currency, show, onOpen }) {
     const t = useT();
     const active = (v.status || 'active') === 'active';
     const contact = (v.contacts || []).find((c) => c.primary);
@@ -177,30 +203,44 @@ function VendorRow({ vendor: v, currency, onOpen }) {
     const reach = contact ? (contact.email || contact.phone) : (v.email || v.phone);
     const ended = v.contract_end && v.contract_end < todayIso();
     const clip = { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+    const dash = <span style={{ color: t.ghost }}>-</span>;
     return (
         <Tr onClick={onOpen} label={`Open ${v.company_name}`}>
-            <Td>
-                <Row gap={10} style={{ minWidth: 200, maxWidth: 320 }}>
-                    <Logo path={v.logo_path} name={v.company_name} size={30} />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                        <span style={{ ...clip, fontSize: 13, fontWeight: 500 }}>{v.company_name}</span>
-                        <span style={{ ...clip, fontSize: 11.5, color: t.faint }}>{v.category || 'Category not set'}</span>
-                    </span>
-                </Row>
-            </Td>
-            <Td muted>
-                <span style={{ ...clip, maxWidth: 240 }}>{who || reach || <span style={{ color: t.ghost }}>No contact yet</span>}</span>
-                {who && reach && <span style={{ ...clip, maxWidth: 240, fontSize: 11.5, color: t.faint }}>{reach}</span>}
-            </Td>
-            <Td nowrap><Badge color={active ? ACTIVE : INACTIVE}>{active ? 'Active' : 'Inactive'}</Badge></Td>
-            <Td nowrap>
-                {v.contract_end
-                    ? <span style={{ color: ended ? t.down : t.text }}>{fmtDate(v.contract_end)}{ended && <span style={{ fontSize: 11.5 }}> · ended</span>}</span>
-                    : <span style={{ color: t.ghost }}>-</span>}
-            </Td>
-            <Td nowrap align="right">
-                {v.contract_value != null ? fmtMoney(v.contract_value, currency || 'INR') : <span style={{ color: t.ghost }}>-</span>}
-            </Td>
+            {show('sn') && <Td muted nowrap>{index + 1}</Td>}
+            {show('vendor') && (
+                <Td>
+                    <Row gap={10} style={{ minWidth: 200, maxWidth: 320 }}>
+                        <Logo path={v.logo_path} name={v.company_name} size={30} />
+                        <span title={v.company_name} style={{ ...clip, minWidth: 0, flex: 1, fontSize: 13, fontWeight: 500 }}>{v.company_name}</span>
+                    </Row>
+                </Td>
+            )}
+            {show('category') && <Td muted nowrap>{v.category || dash}</Td>}
+            {show('contact') && (
+                <Td muted>
+                    <span style={{ ...clip, maxWidth: 240 }}>{who || reach || <span style={{ color: t.ghost }}>No contact yet</span>}</span>
+                    {who && reach && <span style={{ ...clip, maxWidth: 240, fontSize: 11.5, color: t.faint }}>{reach}</span>}
+                </Td>
+            )}
+            {show('email') && <Td muted nowrap>{contact?.email || v.email || dash}</Td>}
+            {show('phone') && <Td muted nowrap>{contact?.phone || v.phone || dash}</Td>}
+            {show('address') && <Td muted><span style={{ ...clip, maxWidth: 280 }} title={v.address || undefined}>{v.address || dash}</span></Td>}
+            {show('gstin') && <Td muted nowrap>{v.gstin ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v.gstin}</span> : dash}</Td>}
+            {show('status') && <Td nowrap><Badge color={active ? ACTIVE : INACTIVE}>{active ? 'Active' : 'Inactive'}</Badge></Td>}
+            {show('start') && <Td muted nowrap>{v.contract_start ? fmtDate(v.contract_start) : dash}</Td>}
+            {show('contract') && (
+                <Td nowrap>
+                    {v.contract_end
+                        ? <span style={{ color: ended ? t.down : t.text }}>{fmtDate(v.contract_end)}{ended && <span style={{ fontSize: 11.5 }}> · ended</span>}</span>
+                        : dash}
+                </Td>
+            )}
+            {show('terms') && <Td muted nowrap>{v.payment_terms_days != null && v.payment_terms_days !== '' ? `${v.payment_terms_days} days` : dash}</Td>}
+            {show('value') && (
+                <Td nowrap align="right">
+                    {v.contract_value != null ? fmtMoney(v.contract_value, currency || 'INR') : dash}
+                </Td>
+            )}
         </Tr>
     );
 }
@@ -261,14 +301,14 @@ function VendorSheet({ vendor: v, project, canEdit, canRemove, onEdit, onClose }
                 {canEdit && <Btn onClick={onEdit}>Edit</Btn>}
                 <Btn primary onClick={onClose}>Done</Btn>
             </>}>
-            <Row gap={12} style={{ marginBottom: 14 }}>
+            <Row gap={12} style={{ marginBottom: 12 }}>
                 <Logo path={v.logo_path} name={v.company_name} size={52} />
                 <div>
                     <Badge color={(v.status || 'active') === 'active' ? ACTIVE : INACTIVE}>{(v.status || 'active') === 'active' ? 'Active' : 'Inactive'}</Badge>
                     {v._link?.scope && <div style={{ fontSize: 12, color: t.dim, marginTop: 5 }}>On this project: {v._link.scope}</div>}
                 </div>
             </Row>
-            <div style={{ display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))' }}>
+            <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))' }}>
                 <section aria-label="Profile">
                     <Detail label="Contact person">{v.contact_name}</Detail>
                     <Detail label="Email">{v.email && <a href={`mailto:${v.email}`} style={{ color: t.text }}>{v.email}</a>}</Detail>

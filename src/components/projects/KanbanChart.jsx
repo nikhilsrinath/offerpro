@@ -148,6 +148,18 @@ export default function KanbanChart() {
 
     return (
         <Page>
+            {/* The headline numbers first, then the filters. */}
+            <StatBand items={[
+                { label: 'Projects', value: shown.length - columns.archived.length },
+                { label: 'Planned', value: columns.planned.length },
+                { label: 'Active', value: columns.active.length },
+                { label: 'On hold', value: columns.on_hold.length },
+                { label: 'Ended', value: columns.completed.length + columns.cancelled.length,
+                    note: `${columns.completed.length} completed · ${columns.cancelled.length} cancelled` },
+                { label: 'Archived', value: columns.archived.length },
+                { label: 'Past due date', value: late, tone: late ? 'down' : undefined },
+            ]} />
+
             <Toolbar>
                 <Search value={query} onChange={setQuery} placeholder="Search name, code, client…" width={220} />
                 <Select aria-label="Type of Project" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 140, height: 29 }}>
@@ -171,17 +183,6 @@ export default function KanbanChart() {
                     <Btn size="sm" onClick={() => { setQuery(''); setClient('all'); setManager('all'); setHealth('all'); }}>Clear filters</Btn>
                 )}
             </Toolbar>
-
-            <StatBand items={[
-                { label: 'Projects', value: shown.length - columns.archived.length },
-                { label: 'Planned', value: columns.planned.length },
-                { label: 'Active', value: columns.active.length },
-                { label: 'On hold', value: columns.on_hold.length },
-                { label: 'Ended', value: columns.completed.length + columns.cancelled.length,
-                    note: `${columns.completed.length} completed · ${columns.cancelled.length} cancelled` },
-                { label: 'Archived', value: columns.archived.length },
-                { label: 'Past due date', value: late, tone: late ? 'down' : undefined },
-            ]} />
 
             {shown.length === 0 ? <Panel><Empty>Nothing matches those filters.</Empty></Panel> : (
                 <div style={{

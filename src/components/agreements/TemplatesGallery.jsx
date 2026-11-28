@@ -49,7 +49,8 @@ export function TemplateCards({ records, linkTo = (to) => to }) {
         .tpl-start svg { transition: transform .15s; }
         @media (prefers-reduced-motion: reduce) { .tpl-card, .tpl-card:hover { transform: none; transition: none; } }
       `}</style>
-      <Grid min={270} gap={14}>
+      {/* auto-fit, not auto-fill: the cards stretch to share the whole row evenly. */}
+      <Grid cols="repeat(auto-fit, minmax(240px, 1fr))" gap={14}>
         {TEMPLATES.map(({ to, icon: Icon, title, tag, desc, count }) => {
           const issued = records ? records.filter(count).length : null;
           return (

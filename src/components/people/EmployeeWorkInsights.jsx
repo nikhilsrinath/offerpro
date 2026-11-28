@@ -48,7 +48,7 @@ export function TodayStrip({ work }) {
 export function AttendanceSection({ work, narrow }) {
   const { monthKey, setMonthKey, ins, rows, series, checkIns, months, statusRows } = work;
   return (
-    <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+    <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
       <div>
         <SectionLabel right={
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -76,7 +76,7 @@ export function AttendanceSection({ work, narrow }) {
         <HoursPerDayChart series={series} height={190} empty={`No completed days in ${monthLabel(monthKey)}.`} />
       </Panel>
 
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
         <Panel title="Days worked" note="last 6 months">
           <MonthsWorkedChart months={months} currentKey={monthKey} height={170} empty="No attendance on record yet." />
         </Panel>
@@ -145,7 +145,7 @@ function Requests({ requests, typeName, limit }) {
 export function LeaveSection({ work, narrow }) {
   const { balances, requests, pending, typeName } = work;
   return (
-    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 2fr) minmax(0, 3fr)', alignItems: 'start' }}>
+    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 2fr) minmax(0, 3fr)', alignItems: 'start' }}>
       <Panel title="Leave balance" note={pending.length ? `${pending.length} pending` : undefined}>
         <Balances balances={balances} />
       </Panel>
@@ -160,7 +160,7 @@ export function LeaveSection({ work, narrow }) {
 export function LeaveSummary({ work, narrow }) {
   const { balances, requests, pending, typeName } = work;
   return (
-    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'repeat(2, minmax(0, 1fr))', alignItems: 'start' }}>
+    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: narrow ? '1fr' : 'repeat(2, minmax(0, 1fr))', alignItems: 'start' }}>
       <Panel title="Leave balance" note={pending.length ? `${pending.length} pending` : undefined}>
         <Balances balances={balances} />
       </Panel>
